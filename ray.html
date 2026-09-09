@@ -22,9 +22,22 @@
   .refresh-info{
     display:flex; align-items:center; justify-content:center;
     gap:10px; font-size:12px; color:#8b8f98; margin-bottom:10px;
+    flex-wrap:wrap;
   }
   .refresh-track{ width:100px; height:4px; background:#2a2c31; border-radius:2px; overflow:hidden; }
   .refresh-bar{ height:100%; width:100%; background:#0a84ff; transition:width 1s linear; }
+  .last-update-text{ font-family:"SF Mono",Menlo,monospace; }
+  .refresh-btn{
+    border:none; background:#1c1e24; color:#fff;
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:14px; line-height:1;
+    transition:transform .3s ease, background .2s ease;
+  }
+  .refresh-btn:active{ background:#0a84ff; }
+  .refresh-btn.spinning{ animation:spin .6s linear; }
+  @keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+
   .filter-tabs{ display:flex; gap:8px; overflow-x:auto; justify-content:center; padding-bottom:4px; }
   .tab{
     border:none; background:#1c1e24; color:#fff; padding:7px 16px;
@@ -65,8 +78,7 @@
   .direction{ font-size:15px; color:#b8bcc4; margin-top:2px; }
   .eta-minutes{ font-size:15px; color:#b8bcc4; margin-top:2px; }
 
-  .card-bottom{ display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; }
-  .timestamp{ font-family:"SF Mono",Menlo,monospace; font-size:13px; color:#7d818a; }
+  .card-bottom{ display:flex; justify-content:flex-end; align-items:flex-end; margin-top:10px; }
   .big-countdown{
     font-size:38px; font-weight:800;
     font-variant-numeric:tabular-nums; letter-spacing:-1px;
@@ -94,6 +106,8 @@
   <div class="refresh-info">
     <span id="nextRefresh">下次更新: 30s</span>
     <div class="refresh-track"><div class="refresh-bar" id="refreshBar"></div></div>
+    <button class="refresh-btn" id="refreshBtn" title="即刻更新">⟳</button>
+    <span class="last-update-text" id="lastUpdateText">最後更新: --:--:--</span>
   </div>
   <div class="filter-tabs">
     <button class="tab active" data-filter="all">全部</button>
@@ -160,7 +174,7 @@ function bigCountdownText(sec){
   return `${m}:${String(s).padStart(2,"0")}`;
 }
 
-/* ========== 卡片建立 ========== */
+/* ========== 卡片建立（已移除卡片內嘅最後更新時間） ========== */
 
 function makeBusCard(id, title, badgeText, badgeClass, dataType){
   const div=document.createElement("div");
@@ -175,7 +189,6 @@ function makeBusCard(id, title, badgeText, badgeClass, dataType){
     <div class="direction body-direction">載入中…</div>
     <div class="eta-minutes body-etaminutes"></div>
     <div class="card-bottom">
-      <div class="timestamp body-timestamp"></div>
       <div class="big-countdown body-bigcountdown">--:--</div>
     </div>`;
   return div;
@@ -201,7 +214,6 @@ function makeMtrCard(id, cfg){
       <div class="direction body-direction">載入中…</div>
       <div class="eta-minutes body-etaminutes"></div>
       <div class="card-bottom">
-        <div class="timestamp body-timestamp"></div>
         <div class="big-countdown body-bigcountdown">--:--</div>
       </div>
     </div>`;
@@ -216,15 +228,13 @@ function setCardData(cardId, direction, etaAbsArr){
   state[cardId] = {
     direction,
     etaAbs: etaAbsArr,
-    error:null,
-    lastUpdate: new Date()   // 只有真正攞到新資料先更新
+    error:null
   };
   renderCard(cardId);
 }
 function setCardError(cardId, msg){
   if(!state[cardId]) state[cardId] = { direction:"", etaAbs:[] };
   state[cardId].error = msg;
-  state[cardId].lastUpdate = new Date();  // 出錯亦當作一次「更新嘗試」
   renderCard(cardId);
 }
 
@@ -235,16 +245,12 @@ function renderCard(cardId){
 
   const dirEl = card.querySelector(".body-direction");
   const etaEl = card.querySelector(".body-etaminutes");
-  const tsEl  = card.querySelector(".body-timestamp");
   const bigEl = card.querySelector(".body-bigcountdown");
-
-  const tsText = s.lastUpdate ? s.lastUpdate.toTimeString().slice(0,8) : "";
 
   if(s.error && (!s.etaAbs || s.etaAbs.length===0)){
     dirEl.textContent = "";
     etaEl.innerHTML = `<span class="error-text">⚠️ ${s.error}</span>`;
     bigEl.textContent = "--:--";
-    tsEl.textContent = tsText;
     return;
   }
 
@@ -257,7 +263,6 @@ function renderCard(cardId){
     return Math.max(0, Math.round(sec/60)) + "分";
   }).join(" / ");
 
-  tsEl.textContent = tsText;
   bigEl.textContent = bigCountdownText(secsArr[0]);
   bigEl.classList.toggle("soon", secsArr[0]!==null && secsArr[0]<=60);
 }
@@ -400,7 +405,25 @@ GMB_CONFIG.forEach((cfg,i)=>{
   fetchTasks.push(()=>loadGmbCard(cfg, id));
 });
 
-function fetchAll(){ fetchTasks.forEach(fn=>fn()); }
+/* ========== 全域「最後更新時間」邏輯 ========== */
+
+const lastUpdateTextEl = document.getElementById("lastUpdateText");
+const refreshBtn = document.getElementById("refreshBtn");
+
+function updateLastUpdateDisplay(){
+  const now = new Date();
+  lastUpdateTextEl.textContent = "最後更新: " + now.toTimeString().slice(0,8);
+}
+
+async function fetchAll(){
+  refreshBtn.classList.add("spinning");
+  try{
+    await Promise.all(fetchTasks.map(fn => fn()));
+  } finally {
+    updateLastUpdateDisplay();
+    refreshBtn.classList.remove("spinning");
+  }
+}
 
 /* ========== Master clock ========== */
 
@@ -419,6 +442,13 @@ function masterTick(){
   updateRefreshIndicator(remaining);
   if(tickCount % REFRESH_SECONDS === 0) fetchAll();
 }
+
+/* ---- 手動即刻refresh按鈕：即刻fetch + reset倒數 ---- */
+refreshBtn.addEventListener("click", ()=>{
+  tickCount = 0;
+  updateRefreshIndicator(REFRESH_SECONDS);
+  fetchAll();
+});
 
 /* ========== Tab 篩選 ========== */
 
