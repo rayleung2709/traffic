@@ -18,13 +18,33 @@
     background:#000;
     padding:16px 16px 10px;
   }
-  h1{ font-size:20px; text-align:center; margin:0 0 12px; font-weight:700; }
+  h1{ font-size:20px; text-align:center; margin:0 0 6px; font-weight:700; }
+
+  /* ---- 全局「最後更新」，放喺標題下面 ---- */
+  .last-updated{
+    text-align:center; font-size:12px; color:#7d818a; margin-bottom:10px;
+    font-family:"SF Mono",Menlo,monospace;
+  }
+
   .refresh-info{
     display:flex; align-items:center; justify-content:center;
     gap:10px; font-size:12px; color:#8b8f98; margin-bottom:10px;
   }
   .refresh-track{ width:100px; height:4px; background:#2a2c31; border-radius:2px; overflow:hidden; }
   .refresh-bar{ height:100%; width:100%; background:#0a84ff; transition:width 1s linear; }
+
+  /* ---- 即刷新button ---- */
+  .refresh-btn{
+    border:none; background:#1c1e24; color:#0a84ff; width:26px; height:26px;
+    border-radius:50%; font-size:15px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .35s ease, opacity .2s;
+  }
+  .refresh-btn:active{ transform:rotate(200deg); }
+  .refresh-btn.spinning{ animation:spin .8s linear infinite; }
+  .refresh-btn:disabled{ opacity:.4; cursor:default; }
+  @keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+
   .filter-tabs{ display:flex; gap:8px; overflow-x:auto; justify-content:center; padding-bottom:4px; }
   .tab{
     border:none; background:#1c1e24; color:#fff; padding:7px 16px;
@@ -65,8 +85,8 @@
   .direction{ font-size:15px; color:#b8bcc4; margin-top:2px; }
   .eta-minutes{ font-size:15px; color:#b8bcc4; margin-top:2px; }
 
-  .card-bottom{ display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; }
-  .timestamp{ font-family:"SF Mono",Menlo,monospace; font-size:13px; color:#7d818a; }
+  /* card-bottom 而家淨係得大字倒數，靠右 */
+  .card-bottom{ display:flex; justify-content:flex-end; align-items:flex-end; margin-top:10px; }
   .big-countdown{
     font-size:38px; font-weight:800;
     font-variant-numeric:tabular-nums; letter-spacing:-1px;
@@ -91,9 +111,11 @@
 
 <div class="topbar">
   <h1>🚉 巴士 / 港鐵站卡</h1>
+  <div class="last-updated" id="globalLastUpdated">最後更新: --:--:--</div>
   <div class="refresh-info">
     <span id="nextRefresh">下次更新: 30s</span>
     <div class="refresh-track"><div class="refresh-bar" id="refreshBar"></div></div>
+    <button class="refresh-btn" id="manualRefreshBtn" title="立即更新" aria-label="立即更新">⟳</button>
   </div>
   <div class="filter-tabs">
     <button class="tab active" data-filter="all">全部</button>
@@ -145,9 +167,12 @@ const GMB_CONFIG = [
 
 /* ========== 共用function ========== */
 
+// [FIX] 加咗 NaN guard，唔會再顯示 "NaN:NaN"
 function secsLeft(t){
   if(!t) return null;
-  const diff = Math.round((new Date(t).getTime() - Date.now())/1000);
+  const target = new Date(t).getTime();
+  if(Number.isNaN(target)) return null;
+  const diff = Math.round((target - Date.now())/1000);
   return diff < 0 ? 0 : diff;
 }
 
@@ -158,6 +183,28 @@ function bigCountdownText(sec){
   const m = Math.floor(sec/60);
   const s = sec%60;
   return `${m}:${String(s).padStart(2,"0")}`;
+}
+
+/* ========== [FIX] 通用 async cache，帶「in-flight」dedupe
+   避免同一個key短時間內被同時fetch兩次（例如MTR UP/DOWN兩張卡撞埋一齊fetch） ========== */
+function createAsyncCache(ttlMs){
+  const store = {};
+  const inflight = {};
+  return async function(key, fetcher){
+    const now = Date.now();
+    if(store[key] && now - store[key].ts < ttlMs) return store[key].data;
+    if(inflight[key]) return inflight[key];
+    const p = fetcher().then(data=>{
+      store[key] = { ts:Date.now(), data };
+      delete inflight[key];
+      return data;
+    }).catch(err=>{
+      delete inflight[key];
+      throw err;
+    });
+    inflight[key] = p;
+    return p;
+  };
 }
 
 /* ========== 卡片建立 ========== */
@@ -175,7 +222,6 @@ function makeBusCard(id, title, badgeText, badgeClass, dataType){
     <div class="direction body-direction">載入中…</div>
     <div class="eta-minutes body-etaminutes"></div>
     <div class="card-bottom">
-      <div class="timestamp body-timestamp"></div>
       <div class="big-countdown body-bigcountdown">--:--</div>
     </div>`;
   return div;
@@ -201,30 +247,23 @@ function makeMtrCard(id, cfg){
       <div class="direction body-direction">載入中…</div>
       <div class="eta-minutes body-etaminutes"></div>
       <div class="card-bottom">
-        <div class="timestamp body-timestamp"></div>
         <div class="big-countdown body-bigcountdown">--:--</div>
       </div>
     </div>`;
   return div;
 }
 
-/* ========== 資料層：淨係存絕對時間 ========== */
+/* ========== 資料層：淨係存絕對時間（已刪除per-card嘅lastUpdate） ========== */
 
 const state = {};
 
 function setCardData(cardId, direction, etaAbsArr){
-  state[cardId] = {
-    direction,
-    etaAbs: etaAbsArr,
-    error:null,
-    lastUpdate: new Date()   // 只有真正攞到新資料先更新
-  };
+  state[cardId] = { direction, etaAbs: etaAbsArr, error:null };
   renderCard(cardId);
 }
 function setCardError(cardId, msg){
   if(!state[cardId]) state[cardId] = { direction:"", etaAbs:[] };
   state[cardId].error = msg;
-  state[cardId].lastUpdate = new Date();  // 出錯亦當作一次「更新嘗試」
   renderCard(cardId);
 }
 
@@ -235,16 +274,12 @@ function renderCard(cardId){
 
   const dirEl = card.querySelector(".body-direction");
   const etaEl = card.querySelector(".body-etaminutes");
-  const tsEl  = card.querySelector(".body-timestamp");
   const bigEl = card.querySelector(".body-bigcountdown");
-
-  const tsText = s.lastUpdate ? s.lastUpdate.toTimeString().slice(0,8) : "";
 
   if(s.error && (!s.etaAbs || s.etaAbs.length===0)){
     dirEl.textContent = "";
     etaEl.innerHTML = `<span class="error-text">⚠️ ${s.error}</span>`;
     bigEl.textContent = "--:--";
-    tsEl.textContent = tsText;
     return;
   }
 
@@ -257,27 +292,25 @@ function renderCard(cardId){
     return Math.max(0, Math.round(sec/60)) + "分";
   }).join(" / ");
 
-  tsEl.textContent = tsText;
   bigEl.textContent = bigCountdownText(secsArr[0]);
   bigEl.classList.toggle("soon", secsArr[0]!==null && secsArr[0]<=60);
 }
 
 function renderAllCards(){ Object.keys(state).forEach(renderCard); }
 
-/* ========== MTR fetch（帶cache，同一車站/綫淨係fetch一次） ========== */
+/* ========== MTR fetch（用咗dedupe cache，15秒內唔會重複打API） ========== */
 
-const mtrCache = {};
+const mtrCacheGet = createAsyncCache(15000);
+
 async function fetchMtrStation(line, sta){
   const key = `${line}-${sta}`;
-  const now = Date.now();
-  if(mtrCache[key] && now - mtrCache[key].ts < 15000) return mtrCache[key].data;
-  const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=TC`;
-  const res = await fetch(url);
-  const json = await res.json();
-  if(json.status===0) throw new Error(json.message || "服務調整");
-  const data = json.data && json.data[key];
-  mtrCache[key] = { ts:now, data };
-  return data;
+  return mtrCacheGet(key, async ()=>{
+    const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=TC`;
+    const res = await fetch(url);
+    const json = await res.json();
+    if(json.status===0) throw new Error(json.message || "服務調整");
+    return json.data && json.data[key];
+  });
 }
 
 async function loadMtrCard(cfg, cardId){
@@ -302,30 +335,28 @@ async function loadCtbCard(cfg, cardId){
   }catch(e){ setCardError(cardId, e.message); }
 }
 
-/* ========== GMB fetch：三層 API（route → route-stop → eta），帶 cache ========== */
+/* ========== GMB fetch：三層 API（route → route-stop → eta），帶 dedupe cache ========== */
 
-const gmbRouteCache = {};   // key: region-route  → routeList
-const gmbStopCache = {};    // key: routeId-routeSeq → stops[]
+const gmbRouteCacheGet = createAsyncCache(6*3600*1000);   // 路線資料好少變，cache耐啲
+const gmbStopCacheGet  = createAsyncCache(6*3600*1000);
 
 async function fetchGmbRoute(region, route){
   const key = `${region}-${route}`;
-  if(gmbRouteCache[key]) return gmbRouteCache[key];
-  const res = await fetch(`https://data.etagmb.gov.hk/route/${region}/${route}`);
-  const json = await res.json();
-  const routeData = json.data;
-  const routeList = Array.isArray(routeData) ? routeData : (routeData ? [routeData] : []);
-  gmbRouteCache[key] = routeList;
-  return routeList;
+  return gmbRouteCacheGet(key, async ()=>{
+    const res = await fetch(`https://data.etagmb.gov.hk/route/${region}/${route}`);
+    const json = await res.json();
+    const routeData = json.data;
+    return Array.isArray(routeData) ? routeData : (routeData ? [routeData] : []);
+  });
 }
 
 async function fetchGmbRouteStops(routeId, routeSeq){
   const key = `${routeId}-${routeSeq}`;
-  if(gmbStopCache[key]) return gmbStopCache[key];
-  const res = await fetch(`https://data.etagmb.gov.hk/route-stop/${routeId}/${routeSeq}`);
-  const json = await res.json();
-  const stops = (json.data && json.data.route_stops) ? json.data.route_stops : [];
-  gmbStopCache[key] = stops;
-  return stops;
+  return gmbStopCacheGet(key, async ()=>{
+    const res = await fetch(`https://data.etagmb.gov.hk/route-stop/${routeId}/${routeSeq}`);
+    const json = await res.json();
+    return (json.data && json.data.route_stops) ? json.data.route_stops : [];
+  });
 }
 
 // 搵到目標站之後，攞返 route_id / route_seq / stop_seq / dest 名
@@ -370,10 +401,12 @@ async function loadGmbCard(cfg, cardId){
       || (Array.isArray(json?.data) ? json.data.flatMap(d => d.eta || []) : [])
       || [];
 
-    if(etaArr.length===0){ setCardError(cardId, "暫無班次"); return; }
+    // [FIX] 淨係用真正嘅 eta 時間，唔再fallback用 data_timestamp（嗰個唔係到站時間）
+    const validTimes = etaArr.map(t => t.eta).filter(Boolean);
 
-    const absTimes = etaArr.slice(0,3).map(t => t.eta || t.timestamp);
-    setCardData(cardId, cfg.destLabel || found.dest || found.name, absTimes);
+    if(validTimes.length===0){ setCardError(cardId, "暫無班次"); return; }
+
+    setCardData(cardId, cfg.destLabel || found.dest || found.name, validTimes.slice(0,3));
   }catch(e){ setCardError(cardId, e.message); }
 }
 
@@ -400,25 +433,47 @@ GMB_CONFIG.forEach((cfg,i)=>{
   fetchTasks.push(()=>loadGmbCard(cfg, id));
 });
 
-function fetchAll(){ fetchTasks.forEach(fn=>fn()); }
+// [CHANGE] fetchAll 而家係 async，攞完所有卡之後先更新「全局最後更新時間」
+const globalLastUpdatedEl = document.getElementById("globalLastUpdated");
+
+async function doFetchAll(){
+  await Promise.all(fetchTasks.map(fn=>fn()));
+  globalLastUpdatedEl.textContent = "最後更新: " + new Date().toTimeString().slice(0,8);
+}
 
 /* ========== Master clock ========== */
 
 const REFRESH_SECONDS = 30;
-let tickCount = 0;
+let secondsToNext = REFRESH_SECONDS;
 
 function updateRefreshIndicator(remaining){
   document.getElementById("nextRefresh").textContent = `下次更新: ${remaining}s`;
   document.getElementById("refreshBar").style.width = `${(remaining/REFRESH_SECONDS)*100}%`;
 }
 
+// [FIX] 而家先會真正顯示到 0s，先觸發下一輪fetch
 function masterTick(){
-  tickCount++;
+  secondsToNext--;
   renderAllCards();
-  const remaining = REFRESH_SECONDS - (tickCount % REFRESH_SECONDS);
-  updateRefreshIndicator(remaining);
-  if(tickCount % REFRESH_SECONDS === 0) fetchAll();
+  updateRefreshIndicator(Math.max(secondsToNext,0));
+  if(secondsToNext <= 0){
+    doFetchAll();
+    secondsToNext = REFRESH_SECONDS;
+  }
 }
+
+/* ========== [新增] 手動即時刷新button ========== */
+
+const manualBtn = document.getElementById("manualRefreshBtn");
+manualBtn.addEventListener("click", async ()=>{
+  manualBtn.disabled = true;
+  manualBtn.classList.add("spinning");
+  secondsToNext = REFRESH_SECONDS;
+  updateRefreshIndicator(REFRESH_SECONDS);
+  await doFetchAll();
+  manualBtn.classList.remove("spinning");
+  manualBtn.disabled = false;
+});
 
 /* ========== Tab 篩選 ========== */
 
@@ -435,7 +490,7 @@ document.querySelectorAll(".tab").forEach(btn=>{
 
 /* ========== 啟動 ========== */
 
-fetchAll();
+doFetchAll();
 updateRefreshIndicator(REFRESH_SECONDS);
 setInterval(masterTick, 1000);
 </script>
