@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cherry的交通ETA</title>
+<title>Cherry 的交通 ETA</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -22,9 +22,22 @@
   .refresh-info{
     display:flex; align-items:center; justify-content:center;
     gap:10px; font-size:12px; color:#8b8f98; margin-bottom:10px;
+    flex-wrap:wrap;
   }
   .refresh-track{ width:100px; height:4px; background:#2a2c31; border-radius:2px; overflow:hidden; }
   .refresh-bar{ height:100%; width:100%; background:#0a84ff; transition:width 1s linear; }
+  .last-update-text{ font-family:"SF Mono",Menlo,monospace; }
+  .refresh-btn{
+    border:none; background:#1c1e24; color:#fff;
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:14px; line-height:1;
+    transition:transform .3s ease, background .2s ease;
+  }
+  .refresh-btn:active{ background:#0a84ff; }
+  .refresh-btn.spinning{ animation:spin .6s linear; }
+  @keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+
   .filter-tabs{ display:flex; gap:8px; overflow-x:auto; justify-content:center; padding-bottom:4px; }
   .tab{
     border:none; background:#1c1e24; color:#fff; padding:7px 16px;
@@ -56,33 +69,22 @@
   .route-badge{
     width:42px; height:42px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:19px; color:#000;
-    background:#F4C40F; /* 巴士：黃色 */
+    font-weight:800; color:#fff;
+    background:#DC241F; /* 九巴：紅色 */
   }
   .route-badge.gmb{ background:#3aa757; color:#fff; } /* 專線小巴：綠色 */
 
   .stop-name{ font-size:21px; font-weight:800; margin-top:10px; line-height:1.25; }
-  .direction{ font-size:15px; color:#b8bcc4; margin-top:2px; }
+  .stop-code{ font-size:12px; color:#6b6f78; margin-top:2px; font-family:"SF Mono",Menlo,monospace; }
+  .direction{ font-size:15px; color:#b8bcc4; margin-top:6px; }
   .eta-minutes{ font-size:15px; color:#b8bcc4; margin-top:2px; }
 
-  .card-bottom{ display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; }
-  .timestamp{ font-family:"SF Mono",Menlo,monospace; font-size:13px; color:#7d818a; }
+  .card-bottom{ display:flex; justify-content:flex-end; align-items:flex-end; margin-top:10px; }
   .big-countdown{
     font-size:38px; font-weight:800;
     font-variant-numeric:tabular-nums; letter-spacing:-1px;
   }
   .big-countdown.soon{ color:#ff453a; }
-
-  /* ---- 港鐵卡：左邊嘅路綫直線指示 ---- */
-  .card.mtr{ flex-direction:row; gap:12px; }
-  .mtr-track{ width:14px; display:flex; flex-direction:column; align-items:center; padding:4px 0; }
-  .mtr-track .dot{ width:10px; height:10px; border-radius:50%; border:2.5px solid #fff; background:#16181d; }
-  .mtr-track .line{ flex:1; width:3px; margin:2px 0; border-radius:2px; }
-  .mtr-content{ flex:1; display:flex; flex-direction:column; justify-content:space-between; }
-  .line-pill{
-    display:inline-block; padding:3px 10px; border-radius:10px;
-    font-size:13px; font-weight:700; color:#fff; margin-top:6px; width:fit-content;
-  }
 
   .error-text{ color:#ff9f0a; font-size:13px; }
 </style>
@@ -90,57 +92,41 @@
 <body>
 
 <div class="topbar">
-  <h1>🚉 巴士 / 港鐵站卡</h1>
+  <h1>🚌 Cherry 專屬交通ETA</h1>
   <div class="refresh-info">
     <span id="nextRefresh">下次更新: 30s</span>
     <div class="refresh-track"><div class="refresh-bar" id="refreshBar"></div></div>
+    <button class="refresh-btn" id="refreshBtn" title="即刻更新">⟳</button>
+    <span class="last-update-text" id="lastUpdateText">最後更新: --:--:--</span>
   </div>
   <div class="filter-tabs">
     <button class="tab active" data-filter="all">全部</button>
-    <button class="tab" data-filter="mtr">港鐵</button>
+    <button class="tab" data-filter="kmb">巴士</button>
     <button class="tab" data-filter="gmb">專線小巴</button>
-    <button class="tab" data-filter="ctb">巴士</button>
   </div>
 </div>
 
 <div class="grid" id="grid"></div>
 
 <script>
-/* ========== 設定：一張卡 = 一個路線/一條綫 + 一個方向 ========== */
+/* ========== 設定：Cherry 日常慣用嘅站卡 ========== */
 
-const LINE_COLORS = {
-  KTL:"#5FA845", TML:"#9A3B26", ISL:"#0072CE",
-  TWL:"#E2231A", EAL:"#53B7E8", SIL:"#BAC429",
-  TCL:"#F3982D", AEL:"#00888A",
-};
-const LINE_NAMES = {
-  KTL:"觀塘綫", TML:"屯馬綫", ISL:"港島綫", TWL:"荃灣綫",
-  EAL:"東鐵綫", SIL:"南港島綫", TCL:"機場快綫", AEL:"機場快綫",
-};
-
-const MTR_CONFIG = [  
-  { title:"鑽石山", line:"KTL", sta:"DIH", dirKey:"DOWN", dirLabel:"黃埔" },
-  { title:"鑽石山", line:"KTL", sta:"DIH", dirKey:"UP",   dirLabel:"調景嶺" }, 
-  { title:"鑽石山", line:"TML", sta:"DIH", dirKey:"UP",   dirLabel:"屯門" },
-  { title:"鑽石山", line:"TML", sta:"DIH", dirKey:"DOWN", dirLabel:"烏溪沙" },
-  { title:"銅鑼灣", line:"ISL", sta:"CAB", dirKey:"DOWN", dirLabel:"堅尼地城" },
-  { title:"銅鑼灣", line:"ISL", sta:"CAB", dirKey:"UP",   dirLabel:"柴灣" },
+/* ---- KMB（九巴）：stop 為官方16位 stop_id，用 Route-Stop API 查得，
+   route/service_type 決定攞緊嗰條線嘅ETA，方向/目的地會由API自動回傳，唔使自己填 ---- */
+const KMB_CONFIG = [
+  { title:"成業街休憩公園", code:"KT447", route:"40",   stop:"FAAD25334A972923", serviceType:"1" },
+  { title:"善達樓",         code:"AN100", route:"213M", stop:"AA52228890817D12", serviceType:"1" },
+  { title:"長康邨康祥樓",   code:"TY314", route:"X42C", stop:"F93448A5F1168FB1", serviceType:"1" },
 ];
 
-const CTB_CONFIG = [
-  { title:"寶雲道，司徒拔道", route:"15", stop:"002506" },
-  { title:"金鐘 - 金鐘花園，金鐘道", route:"15", stop:"001136" },
-  { title:"寶雲道，司徒拔道", route:"6",  stop:"002506" },
-  { title:"金鐘 - 金鐘花園，金鐘道", route:"6",  stop:"001136" },
-];
-
-/* ---- GMB：region 係 "HKI"/"KLN"/"NT"，route 係路線編號
+/* ---- GMB（專線小巴）：region 係 "HKI"/"KLN"/"NT"，route 係路線編號
    stopMatch 係站名關鍵字（用嚟喺 route-stop 清單裡面搵對應嗰個站）
    occurrence：如果同一名稱嘅站喺路線裡面出現多次，用呢個揀第幾個（預設1）
-   direction：如果知道 route_seq 對應嘅方向係第幾個 (1或2)，可以加呢個縮窄範圍，唔加就兩邊都搵 ---- */
+   direction：route_seq 對應嘅方向 (1或2)，唔加就兩邊都搵 ---- */
 const GMB_CONFIG = [
-  { title:"港安醫院",   region:"HKI", route:"26", stopMatch:"港安醫院", occurrence:1 },
-  { title:"鳳鳴大廈", region:"HKI", route:"26", stopMatch:"鳳鳴大廈", occurrence:1 },
+  { title:"麗港城小巴總站", region:"KLN", route:"69",  stopMatch:"麗港城小巴總站", occurrence:1, direction:1 },
+  { title:"麗港城小巴總站", region:"KLN", route:"69A", stopMatch:"麗港城小巴總站", occurrence:1, direction:1 },
+  { title:"茜發道",         region:"KLN", route:"23C", stopMatch:"茜發道",         occurrence:1, direction:1 },
 ];
 
 /* ========== 共用function ========== */
@@ -162,48 +148,22 @@ function bigCountdownText(sec){
 
 /* ========== 卡片建立 ========== */
 
-function makeBusCard(id, title, badgeText, badgeClass, dataType){
+function makeBusCard(id, title, badgeText, badgeClass, dataType, code){
   const div=document.createElement("div");
   div.className="card bus";
   div.id=id;
   div.dataset.type=dataType;
+  const badgeFontSize = (badgeText && badgeText.length>=4) ? "14px" : "19px";
   div.innerHTML=`
     <div class="card-top">
-      <div class="route-badge ${badgeClass}">${badgeText}</div>
+      <div class="route-badge ${badgeClass}" style="font-size:${badgeFontSize}">${badgeText}</div>
     </div>
     <div class="stop-name">${title}</div>
+    ${code ? `<div class="stop-code">${code}</div>` : ""}
     <div class="direction body-direction">載入中…</div>
     <div class="eta-minutes body-etaminutes"></div>
     <div class="card-bottom">
-      <div class="timestamp body-timestamp"></div>
       <div class="big-countdown body-bigcountdown">--:--</div>
-    </div>`;
-  return div;
-}
-
-function makeMtrCard(id, cfg){
-  const color = LINE_COLORS[cfg.line] || "#888";
-  const div=document.createElement("div");
-  div.className="card mtr";
-  div.id=id;
-  div.dataset.type="mtr";
-  div.innerHTML=`
-    <div class="mtr-track">
-      <span class="dot" style="border-color:${color}"></span>
-      <span class="line" style="background:${color}"></span>
-      <span class="dot" style="border-color:${color}"></span>
-    </div>
-    <div class="mtr-content">
-      <div class="card-top">
-        <div class="stop-name">${cfg.title}</div>
-      </div>
-      <div class="line-pill" style="background:${color}">${LINE_NAMES[cfg.line]||cfg.line}</div>
-      <div class="direction body-direction">載入中…</div>
-      <div class="eta-minutes body-etaminutes"></div>
-      <div class="card-bottom">
-        <div class="timestamp body-timestamp"></div>
-        <div class="big-countdown body-bigcountdown">--:--</div>
-      </div>
     </div>`;
   return div;
 }
@@ -216,15 +176,13 @@ function setCardData(cardId, direction, etaAbsArr){
   state[cardId] = {
     direction,
     etaAbs: etaAbsArr,
-    error:null,
-    lastUpdate: new Date()   // 只有真正攞到新資料先更新
+    error:null
   };
   renderCard(cardId);
 }
 function setCardError(cardId, msg){
   if(!state[cardId]) state[cardId] = { direction:"", etaAbs:[] };
   state[cardId].error = msg;
-  state[cardId].lastUpdate = new Date();  // 出錯亦當作一次「更新嘗試」
   renderCard(cardId);
 }
 
@@ -235,16 +193,12 @@ function renderCard(cardId){
 
   const dirEl = card.querySelector(".body-direction");
   const etaEl = card.querySelector(".body-etaminutes");
-  const tsEl  = card.querySelector(".body-timestamp");
   const bigEl = card.querySelector(".body-bigcountdown");
-
-  const tsText = s.lastUpdate ? s.lastUpdate.toTimeString().slice(0,8) : "";
 
   if(s.error && (!s.etaAbs || s.etaAbs.length===0)){
     dirEl.textContent = "";
     etaEl.innerHTML = `<span class="error-text">⚠️ ${s.error}</span>`;
     bigEl.textContent = "--:--";
-    tsEl.textContent = tsText;
     return;
   }
 
@@ -257,46 +211,20 @@ function renderCard(cardId){
     return Math.max(0, Math.round(sec/60)) + "分";
   }).join(" / ");
 
-  tsEl.textContent = tsText;
   bigEl.textContent = bigCountdownText(secsArr[0]);
   bigEl.classList.toggle("soon", secsArr[0]!==null && secsArr[0]<=60);
 }
 
 function renderAllCards(){ Object.keys(state).forEach(renderCard); }
 
-/* ========== MTR fetch（帶cache，同一車站/綫淨係fetch一次） ========== */
+/* ========== KMB fetch ========== */
 
-const mtrCache = {};
-async function fetchMtrStation(line, sta){
-  const key = `${line}-${sta}`;
-  const now = Date.now();
-  if(mtrCache[key] && now - mtrCache[key].ts < 15000) return mtrCache[key].data;
-  const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=TC`;
-  const res = await fetch(url);
-  const json = await res.json();
-  if(json.status===0) throw new Error(json.message || "服務調整");
-  const data = json.data && json.data[key];
-  mtrCache[key] = { ts:now, data };
-  return data;
-}
-
-async function loadMtrCard(cfg, cardId){
+async function loadKmbCard(cfg, cardId){
   try{
-    const raw = await fetchMtrStation(cfg.line, cfg.sta);
-    const arr = (raw && raw[cfg.dirKey]) || [];
-    if(arr.length===0){ setCardError(cardId, "暫無班次"); return; }
-    setCardData(cardId, cfg.dirLabel, arr.slice(0,3).map(t=>t.time));
-  }catch(e){ setCardError(cardId, e.message); }
-}
-
-/* ========== Citybus fetch ========== */
-
-async function loadCtbCard(cfg, cardId){
-  try{
-    const url = `https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${cfg.stop}/${cfg.route}`;
+    const url = `https://data.etabus.gov.hk/v1/transport/kmb/eta/${cfg.stop}/${cfg.route}/${cfg.serviceType||1}`;
     const res = await fetch(url);
     const json = await res.json();
-    const arr = json.data || [];
+    const arr = (json.data || []).filter(d => d.eta);
     if(arr.length===0){ setCardError(cardId, "暫無班次"); return; }
     setCardData(cardId, arr[0].dest_tc || arr[0].dest_en || "", arr.slice(0,3).map(t=>t.eta));
   }catch(e){ setCardError(cardId, e.message); }
@@ -382,16 +310,10 @@ async function loadGmbCard(cfg, cardId){
 const grid = document.getElementById("grid");
 const fetchTasks = [];
 
-MTR_CONFIG.forEach((cfg,i)=>{
-  const id = `mtr-${i}`;
-  grid.appendChild(makeMtrCard(id, cfg));
-  fetchTasks.push(()=>loadMtrCard(cfg, id));
-});
-
-CTB_CONFIG.forEach((cfg,i)=>{
-  const id = `ctb-${i}`;
-  grid.appendChild(makeBusCard(id, cfg.title, cfg.route, "", "ctb"));
-  fetchTasks.push(()=>loadCtbCard(cfg, id));
+KMB_CONFIG.forEach((cfg,i)=>{
+  const id = `kmb-${i}`;
+  grid.appendChild(makeBusCard(id, cfg.title, cfg.route, "kmb", "kmb", cfg.code));
+  fetchTasks.push(()=>loadKmbCard(cfg, id));
 });
 
 GMB_CONFIG.forEach((cfg,i)=>{
@@ -400,7 +322,25 @@ GMB_CONFIG.forEach((cfg,i)=>{
   fetchTasks.push(()=>loadGmbCard(cfg, id));
 });
 
-function fetchAll(){ fetchTasks.forEach(fn=>fn()); }
+/* ========== 全域「最後更新時間」邏輯 ========== */
+
+const lastUpdateTextEl = document.getElementById("lastUpdateText");
+const refreshBtn = document.getElementById("refreshBtn");
+
+function updateLastUpdateDisplay(){
+  const now = new Date();
+  lastUpdateTextEl.textContent = "最後更新: " + now.toTimeString().slice(0,8);
+}
+
+async function fetchAll(){
+  refreshBtn.classList.add("spinning");
+  try{
+    await Promise.all(fetchTasks.map(fn => fn()));
+  } finally {
+    updateLastUpdateDisplay();
+    refreshBtn.classList.remove("spinning");
+  }
+}
 
 /* ========== Master clock ========== */
 
@@ -419,6 +359,13 @@ function masterTick(){
   updateRefreshIndicator(remaining);
   if(tickCount % REFRESH_SECONDS === 0) fetchAll();
 }
+
+/* ---- 手動即刻refresh按鈕：即刻fetch + reset倒數 ---- */
+refreshBtn.addEventListener("click", ()=>{
+  tickCount = 0;
+  updateRefreshIndicator(REFRESH_SECONDS);
+  fetchAll();
+});
 
 /* ========== Tab 篩選 ========== */
 
