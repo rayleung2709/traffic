@@ -112,7 +112,6 @@
     <span id="nextRefresh">下次更新: 30s</span>
     <div class="refresh-track"><div class="refresh-bar" id="refreshBar"></div></div>
     <button class="refresh-btn" id="refreshBtn" title="即刻更新">⟳</button>
-    <span class="last-update-text" id="lastUpdateText">最後更新: --:--:--</span>
   </div>
   <div class="filter-tabs" id="filterTabs">
     <button class="tab" data-filter="all">全部</button>
@@ -477,28 +476,9 @@ GMB_CONFIG.forEach((cfg,i)=>{
 
 /* ========== 全域「最後更新時間」邏輯 ========== */
 
-const lastUpdateTextEl = document.getElementById("lastUpdateText");
 const refreshBtn = document.getElementById("refreshBtn");
 
-function updateLastUpdateDisplay(){
-  lastUpdateTextEl.textContent = "最後更新: " + timeHHMMSS(new Date());
-}
-
 let isFetching = false;
-async function fetchAll(){
-  if(isFetching) return; // 避免手動refresh同自動refresh同時執行
-  isFetching = true;
-  refreshBtn.disabled = true;
-  refreshBtn.classList.add("spinning");
-  try{
-    await Promise.all(fetchTasks.map(fn => fn()));
-  } finally {
-    updateLastUpdateDisplay();
-    refreshBtn.classList.remove("spinning");
-    refreshBtn.disabled = false;
-    isFetching = false;
-  }
-}
 
 /* ========== Master clock ========== */
 
