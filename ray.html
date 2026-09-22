@@ -32,10 +32,10 @@
     width:24px; height:24px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; font-size:14px; line-height:1;
-    transition:transform .3s ease, background .2s ease;
+    transition:background .2s ease;
   }
   .refresh-btn:active{ background:#0a84ff; }
-  .refresh-btn.spinning{ animation:spin .6s linear; }
+  .refresh-btn.spinning{ animation:spin .8s linear infinite; }
   @keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
 
   .filter-tabs{ display:flex; gap:8px; overflow-x:auto; justify-content:center; padding-bottom:4px; }
@@ -76,6 +76,7 @@
 
   .stop-name{ font-size:21px; font-weight:800; margin-top:10px; line-height:1.25; }
   .direction{ font-size:15px; color:#b8bcc4; margin-top:2px; }
+  .direction.stale{ color:#ff9f0a; }
   .eta-minutes{ font-size:15px; color:#b8bcc4; margin-top:2px; }
 
   .card-bottom{ display:flex; justify-content:flex-end; align-items:flex-end; margin-top:10px; }
@@ -129,18 +130,18 @@ const LINE_COLORS = {
 };
 const LINE_NAMES = {
   KTL:"觀塘綫", TML:"屯馬綫", ISL:"港島綫", TWL:"荃灣綫",
-  EAL:"東鐵綫", SIL:"南港島綫", TCL:"機場快綫", AEL:"機場快綫",
+  EAL:"東鐵綫", SIL:"南港島綫", TCL:"東涌綫", AEL:"機場快綫",
 };
 
-const MTR_CONFIG = [  
+const MTR_CONFIG = [
   { title:"鑽石山", line:"KTL", sta:"DIH", dirKey:"DOWN", dirLabel:"黃埔" },
-  { title:"鑽石山", line:"KTL", sta:"DIH", dirKey:"UP",   dirLabel:"調景嶺" }, 
+  { title:"鑽石山", line:"KTL", sta:"DIH", dirKey:"UP",   dirLabel:"調景嶺" },
   { title:"鑽石山", line:"TML", sta:"DIH", dirKey:"UP",   dirLabel:"屯門" },
   { title:"鑽石山", line:"TML", sta:"DIH", dirKey:"DOWN", dirLabel:"烏溪沙" },
   { title:"銅鑼灣", line:"ISL", sta:"CAB", dirKey:"DOWN", dirLabel:"堅尼地城" },
   { title:"銅鑼灣", line:"ISL", sta:"CAB", dirKey:"UP",   dirLabel:"柴灣" },
   { title:"鰂魚涌", line:"ISL", sta:"QUB", dirKey:"DOWN", dirLabel:"堅尼地城" },
-  { title:"鰂魚涌", line:"ISL", sta:"QUB", dirKey:"UP",   dirLabel:"柴灣" }, 
+  { title:"鰂魚涌", line:"ISL", sta:"QUB", dirKey:"UP",   dirLabel:"柴灣" },
 ];
 
 const CTB_CONFIG = [
@@ -174,6 +175,22 @@ function bigCountdownText(sec){
   const m = Math.floor(sec/60);
   const s = sec%60;
   return `${m}:${String(s).padStart(2,"0")}`;
+}
+
+// 帶timeout嘅fetch，超時或者HTTP錯誤都會拋出清晰嘅訊息
+async function fetchWithTimeout(url, ms=8000){
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), ms);
+  try{
+    const res = await fetch(url, { signal: controller.signal });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  }catch(err){
+    if(err.name === "AbortError") throw new Error("請求逾時");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* ========== 卡片建立（已移除卡片內嘅最後更新時間） ========== */
@@ -249,15 +266,22 @@ function renderCard(cardId){
   const etaEl = card.querySelector(".body-etaminutes");
   const bigEl = card.querySelector(".body-bigcountdown");
 
+  // 完全冇資料 + 出錯 → 顯示錯誤畫面
   if(s.error && (!s.etaAbs || s.etaAbs.length===0)){
     dirEl.textContent = "";
+    dirEl.classList.remove("stale");
     etaEl.innerHTML = `<span class="error-text">⚠️ ${s.error}</span>`;
     bigEl.textContent = "--:--";
+    bigEl.classList.remove("soon");
     return;
   }
 
   const secsArr = s.etaAbs.map(secsLeft);
-  dirEl.textContent = "往 " + s.direction;
+
+  // 有舊資料，但今次refresh失敗 → 照樣倒數，但標示「可能已過時」
+  dirEl.textContent = "往 " + s.direction + (s.error ? " ⚠️" : "");
+  dirEl.classList.toggle("stale", !!s.error);
+  dirEl.title = s.error ? `今次更新失敗，顯示嘅係舊資料：${s.error}` : "";
 
   // 跳過第一班（已經係右下大字顯示），淨係顯示第二、第三班
   etaEl.textContent = secsArr.slice(1).map(sec=>{
@@ -277,14 +301,26 @@ const mtrCache = {};
 async function fetchMtrStation(line, sta){
   const key = `${line}-${sta}`;
   const now = Date.now();
-  if(mtrCache[key] && now - mtrCache[key].ts < 15000) return mtrCache[key].data;
-  const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=TC`;
-  const res = await fetch(url);
-  const json = await res.json();
-  if(json.status===0) throw new Error(json.message || "服務調整");
-  const data = json.data && json.data[key];
-  mtrCache[key] = { ts:now, data };
-  return data;
+  if(mtrCache[key]?.data && now - mtrCache[key].ts < 15000) return mtrCache[key].data;
+  if(mtrCache[key]?.pending) return mtrCache[key].pending;
+
+  const p = (async()=>{
+    try{
+      const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=TC`;
+      const res = await fetchWithTimeout(url);
+      const json = await res.json();
+      if(json.status===0) throw new Error(json.message || "服務調整");
+      const data = json.data && json.data[key];
+      mtrCache[key] = { ts:Date.now(), data };
+      return data;
+    }catch(err){
+      delete mtrCache[key]; // 失敗要清走cache，否則下次會攞到同一個已經reject嘅promise
+      throw err;
+    }
+  })();
+
+  mtrCache[key] = { pending:p };
+  return p;
 }
 
 async function loadMtrCard(cfg, cardId){
@@ -301,7 +337,7 @@ async function loadMtrCard(cfg, cardId){
 async function loadCtbCard(cfg, cardId){
   try{
     const url = `https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${cfg.stop}/${cfg.route}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const json = await res.json();
     const arr = json.data || [];
     if(arr.length===0){ setCardError(cardId, "暫無班次"); return; }
@@ -317,7 +353,7 @@ const gmbStopCache = {};    // key: routeId-routeSeq → stops[]
 async function fetchGmbRoute(region, route){
   const key = `${region}-${route}`;
   if(gmbRouteCache[key]) return gmbRouteCache[key];
-  const res = await fetch(`https://data.etagmb.gov.hk/route/${region}/${route}`);
+  const res = await fetchWithTimeout(`https://data.etagmb.gov.hk/route/${region}/${route}`);
   const json = await res.json();
   const routeData = json.data;
   const routeList = Array.isArray(routeData) ? routeData : (routeData ? [routeData] : []);
@@ -328,7 +364,7 @@ async function fetchGmbRoute(region, route){
 async function fetchGmbRouteStops(routeId, routeSeq){
   const key = `${routeId}-${routeSeq}`;
   if(gmbStopCache[key]) return gmbStopCache[key];
-  const res = await fetch(`https://data.etagmb.gov.hk/route-stop/${routeId}/${routeSeq}`);
+  const res = await fetchWithTimeout(`https://data.etagmb.gov.hk/route-stop/${routeId}/${routeSeq}`);
   const json = await res.json();
   const stops = (json.data && json.data.route_stops) ? json.data.route_stops : [];
   gmbStopCache[key] = stops;
@@ -369,7 +405,7 @@ async function loadGmbCard(cfg, cardId){
   try{
     const found = await findGmbStop(cfg);
     const url = `https://data.etagmb.gov.hk/eta/route-stop/${found.route_id}/${found.route_seq}/${found.stop_seq}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const json = await res.json();
 
     let etaArr = json?.data?.eta
@@ -417,13 +453,17 @@ function updateLastUpdateDisplay(){
   lastUpdateTextEl.textContent = "最後更新: " + now.toTimeString().slice(0,8);
 }
 
+let isFetching = false;
 async function fetchAll(){
+  if(isFetching) return; // 避免手動refresh同自動refresh同時執行
+  isFetching = true;
   refreshBtn.classList.add("spinning");
   try{
     await Promise.all(fetchTasks.map(fn => fn()));
   } finally {
     updateLastUpdateDisplay();
     refreshBtn.classList.remove("spinning");
+    isFetching = false;
   }
 }
 
