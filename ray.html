@@ -45,7 +45,7 @@
     border-radius:16px; font-size:13px; cursor:pointer; white-space:nowrap;
   }
   .tab.active{ background:#0a84ff; }
- 
+
   .grid{
     display:grid;
     grid-template-columns:repeat(2,1fr);
@@ -107,7 +107,7 @@
 <body>
 
 <div class="topbar">
-  <h1>Dr. Ray Leung's traffic ETA</h1>
+  <h1>🚉 巴士 / 港鐵站卡</h1>
   <div class="refresh-info">
     <span id="nextRefresh">下次更新: 30s</span>
     <div class="refresh-track"><div class="refresh-bar" id="refreshBar"></div></div>
@@ -121,7 +121,7 @@
     <button class="tab" data-filter="ctb">巴士</button>
   </div>
 </div>
-<div id="alertBanner" style="max-width:1100px;margin:0 auto;padding:0 14px;"></div>
+
 <div class="grid" id="grid"></div>
 
 <script>
@@ -486,12 +486,12 @@ function updateLastUpdateDisplay(){
 
 let isFetching = false;
 async function fetchAll(){
-  if(isFetching) return;
+  if(isFetching) return; // 避免手動refresh同自動refresh同時執行
   isFetching = true;
   refreshBtn.disabled = true;
   refreshBtn.classList.add("spinning");
   try{
-    await Promise.all([...fetchTasks.map(fn => fn()), loadAlerts()]);
+    await Promise.all(fetchTasks.map(fn => fn()));
   } finally {
     updateLastUpdateDisplay();
     refreshBtn.classList.remove("spinning");
@@ -500,58 +500,6 @@ async function fetchAll(){
   }
 }
 
-/* ========== Fetch Warnings ========== */
- 
- async function fetchWeatherWarnings(){
-  try{
-    const res = await fetchWithTimeout("https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc");
-    const json = await res.json();
-    // warnsum 格式：keys 係 code (WFIRE/WTS/WRAIN...)，value 係 {name, type, actionCode...}
-    return Object.values(json).filter(w => w && w.actionCode !== "CANCEL");
-  }catch(e){
-    return []; // 攞唔到就當冇警告，唔阻住其他卡
-  }
-}
-
-async function fetchTrafficNews(){
-  try{
-    const target = encodeURIComponent("https://www.td.gov.hk/datagovhk_tis/traffic-notices/traffic-notices.xml");
-    const res = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${target}`);
-    const text = await res.text();
-    const xml = new DOMParser().parseFromString(text, "text/xml");
-    const messages = Array.from(xml.getElementsByTagName("Traffic_Notice") ); // ⚠️ tag名要fetch一次落嚟親自confirm
-    return messages.slice(0,5).map(m => ({
-      text: m.getElementsByTagName("Content_TC")[0]?.textContent || ""
-    })).filter(m => m.text);
-  }catch(e){
-    return [];
-  }
-}
-
- async function loadAlerts(){
-  const [weatherWarnings, trafficNews] = await Promise.all([
-    fetchWeatherWarnings(),
-    fetchTrafficNews()
-  ]);
-
-  const banner = document.getElementById("alertBanner");
-  banner.innerHTML = "";
-
-  weatherWarnings.forEach(w=>{
-    const div = document.createElement("div");
-    div.style = "background:#3a1d1d;color:#ff9f0a;padding:10px 16px;border-radius:14px;margin-bottom:8px;font-size:13px;";
-    div.textContent = `⚠️ ${w.name}`;
-    banner.appendChild(div);
-  });
-
-  trafficNews.forEach(n=>{
-    const div = document.createElement("div");
-    div.style = "background:#1c1e24;color:#b8bcc4;padding:10px 16px;border-radius:14px;margin-bottom:8px;font-size:13px;";
-    div.textContent = `🚧 ${n.text}`;
-    banner.appendChild(div);
-  });
-}
- 
 /* ========== Master clock ========== */
 
 const REFRESH_SECONDS = 30;
