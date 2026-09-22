@@ -32,10 +32,11 @@
     width:24px; height:24px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; font-size:14px; line-height:1;
-    transition:background .2s ease;
+    transition:background .2s ease, opacity .2s ease;
   }
   .refresh-btn:active{ background:#0a84ff; }
   .refresh-btn.spinning{ animation:spin .8s linear infinite; }
+  .refresh-btn:disabled{ opacity:.4; cursor:not-allowed; }
   @keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
 
   .filter-tabs{ display:flex; gap:8px; overflow-x:auto; justify-content:center; padding-bottom:4px; }
@@ -49,11 +50,13 @@
     display:grid;
     grid-template-columns:repeat(2,1fr);
     gap:14px;
-    max-width:820px;
+    max-width:1100px;
     margin:16px auto 0;
     padding:0 14px;
   }
   @media (max-width:520px){ .grid{ grid-template-columns:1fr 1fr; gap:10px; padding:0 8px; } }
+  @media (min-width:700px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+  @media (min-width:1000px){ .grid{ grid-template-columns:repeat(4,1fr); } }
 
   .card{
     background:#16181d;
@@ -62,7 +65,7 @@
     display:flex;
     flex-direction:column;
     justify-content:space-between;
-    min-height:190px;
+    min-height:200px;
   }
 
   .card-top{ display:flex; justify-content:flex-start; align-items:flex-start; }
@@ -78,6 +81,7 @@
   .direction{ font-size:15px; color:#b8bcc4; margin-top:2px; }
   .direction.stale{ color:#ff9f0a; }
   .eta-minutes{ font-size:15px; color:#b8bcc4; margin-top:2px; }
+  .card-updated{ font-size:11px; color:#5c5f66; margin-top:6px; font-family:"SF Mono",Menlo,monospace; }
 
   .card-bottom{ display:flex; justify-content:flex-end; align-items:flex-end; margin-top:10px; }
   .big-countdown{
@@ -97,7 +101,7 @@
     font-size:13px; font-weight:700; color:#fff; margin-top:6px; width:fit-content;
   }
 
-  .error-text{ color:#ff9f0a; font-size:13px; }
+  .error-wrap{ display:flex; align-items:center; gap:4px; font-size:13px; color:#ff9f0a; }
 </style>
 </head>
 <body>
@@ -110,8 +114,8 @@
     <button class="refresh-btn" id="refreshBtn" title="即刻更新">⟳</button>
     <span class="last-update-text" id="lastUpdateText">最後更新: --:--:--</span>
   </div>
-  <div class="filter-tabs">
-    <button class="tab active" data-filter="all">全部</button>
+  <div class="filter-tabs" id="filterTabs">
+    <button class="tab" data-filter="all">全部</button>
     <button class="tab" data-filter="mtr">港鐵</button>
     <button class="tab" data-filter="gmb">專線小巴</button>
     <button class="tab" data-filter="ctb">巴士</button>
@@ -123,10 +127,11 @@
 <script>
 /* ========== 設定：一張卡 = 一個路線/一條綫 + 一個方向 ========== */
 
+// 顏色 + 名稱已對照官方資料修正（TCL=東涌綫橙色 / AEL=機場快綫深藍青色）
 const LINE_COLORS = {
-  KTL:"#5FA845", TML:"#9A3B26", ISL:"#0072CE",
-  TWL:"#E2231A", EAL:"#53B7E8", SIL:"#BAC429",
-  TCL:"#F3982D", AEL:"#00888A",
+  KTL:"#00A040", TML:"#9A3B26", ISL:"#0075C2",
+  TWL:"#E2231A", EAL:"#5EB7E8", SIL:"#B5BD00",
+  TCL:"#F7943E", AEL:"#00888A",
 };
 const LINE_NAMES = {
   KTL:"觀塘綫", TML:"屯馬綫", ISL:"港島綫", TWL:"荃灣綫",
@@ -160,6 +165,8 @@ const GMB_CONFIG = [
   { title:"鳳鳴大廈外", region:"HKI", route:"26", stopMatch:"鳳鳴大廈", occurrence:1 },
 ];
 
+const STALE_THRESHOLD_MS = 70000; // 超過大約2個refresh週期就當過時
+
 /* ========== 共用function ========== */
 
 function secsLeft(t){
@@ -168,7 +175,6 @@ function secsLeft(t){
   return diff < 0 ? 0 : diff;
 }
 
-// 右下角大字：分:秒 (例如 1:17 / 10:04)
 function bigCountdownText(sec){
   if(sec===null) return "--:--";
   if(sec<=0) return "到站";
@@ -177,23 +183,28 @@ function bigCountdownText(sec){
   return `${m}:${String(s).padStart(2,"0")}`;
 }
 
+function timeHHMMSS(date){
+  return date.toTimeString().slice(0,8);
+}
+
 // 帶timeout嘅fetch，超時或者HTTP錯誤都會拋出清晰嘅訊息
 async function fetchWithTimeout(url, ms=8000){
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(), ms);
   try{
     const res = await fetch(url, { signal: controller.signal });
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    if(!res.ok) throw new Error(`伺服器錯誤 (${res.status})`);
     return res;
   }catch(err){
     if(err.name === "AbortError") throw new Error("請求逾時");
+    if(err instanceof TypeError) throw new Error("連線失敗");
     throw err;
   } finally {
     clearTimeout(timer);
   }
 }
 
-/* ========== 卡片建立（已移除卡片內嘅最後更新時間） ========== */
+/* ========== 卡片建立 ========== */
 
 function makeBusCard(id, title, badgeText, badgeClass, dataType){
   const div=document.createElement("div");
@@ -207,6 +218,7 @@ function makeBusCard(id, title, badgeText, badgeClass, dataType){
     <div class="stop-name">${title}</div>
     <div class="direction body-direction">載入中…</div>
     <div class="eta-minutes body-etaminutes"></div>
+    <div class="card-updated body-updated"></div>
     <div class="card-bottom">
       <div class="big-countdown body-bigcountdown">--:--</div>
     </div>`;
@@ -232,6 +244,7 @@ function makeMtrCard(id, cfg){
       <div class="line-pill" style="background:${color}">${LINE_NAMES[cfg.line]||cfg.line}</div>
       <div class="direction body-direction">載入中…</div>
       <div class="eta-minutes body-etaminutes"></div>
+      <div class="card-updated body-updated"></div>
       <div class="card-bottom">
         <div class="big-countdown body-bigcountdown">--:--</div>
       </div>
@@ -239,7 +252,7 @@ function makeMtrCard(id, cfg){
   return div;
 }
 
-/* ========== 資料層：淨係存絕對時間 ========== */
+/* ========== 資料層：淨係存絕對時間 + 每卡最後成功更新時間 ========== */
 
 const state = {};
 
@@ -247,12 +260,13 @@ function setCardData(cardId, direction, etaAbsArr){
   state[cardId] = {
     direction,
     etaAbs: etaAbsArr,
-    error:null
+    error:null,
+    lastSuccess: Date.now()
   };
   renderCard(cardId);
 }
 function setCardError(cardId, msg){
-  if(!state[cardId]) state[cardId] = { direction:"", etaAbs:[] };
+  if(!state[cardId]) state[cardId] = { direction:"", etaAbs:[], lastSuccess:null };
   state[cardId].error = msg;
   renderCard(cardId);
 }
@@ -265,29 +279,39 @@ function renderCard(cardId){
   const dirEl = card.querySelector(".body-direction");
   const etaEl = card.querySelector(".body-etaminutes");
   const bigEl = card.querySelector(".body-bigcountdown");
+  const updEl = card.querySelector(".body-updated");
 
-  // 完全冇資料 + 出錯 → 顯示錯誤畫面
+  // 完全冇資料 + 出錯 → 顯示錯誤畫面（用textContent，唔用innerHTML塞錯誤字串，避免任何注入風險）
   if(s.error && (!s.etaAbs || s.etaAbs.length===0)){
     dirEl.textContent = "";
     dirEl.classList.remove("stale");
-    etaEl.innerHTML = `<span class="error-text">⚠️ ${s.error}</span>`;
+    etaEl.innerHTML = "";
+    const wrap = document.createElement("span");
+    wrap.className = "error-wrap";
+    wrap.textContent = "⚠️ " + s.error;
+    etaEl.appendChild(wrap);
     bigEl.textContent = "--:--";
     bigEl.classList.remove("soon");
+    updEl.textContent = "";
     return;
   }
 
   const secsArr = s.etaAbs.map(secsLeft);
+  const isStale = s.lastSuccess && (Date.now() - s.lastSuccess > STALE_THRESHOLD_MS);
+  const showWarning = s.error || isStale;
 
-  // 有舊資料，但今次refresh失敗 → 照樣倒數，但標示「可能已過時」
-  dirEl.textContent = "往 " + s.direction + (s.error ? " ⚠️" : "");
-  dirEl.classList.toggle("stale", !!s.error);
-  dirEl.title = s.error ? `今次更新失敗，顯示嘅係舊資料：${s.error}` : "";
+  dirEl.textContent = "往 " + s.direction + (showWarning ? " ⚠️" : "");
+  dirEl.classList.toggle("stale", !!showWarning);
+  dirEl.title = s.error
+    ? `今次更新失敗，顯示嘅係舊資料：${s.error}`
+    : (isStale ? "資料可能已過時" : "");
 
-  // 跳過第一班（已經係右下大字顯示），淨係顯示第二、第三班
   etaEl.textContent = secsArr.slice(1).map(sec=>{
     if(sec===null) return "--";
     return Math.max(0, Math.round(sec/60)) + "分";
   }).join(" / ");
+
+  updEl.textContent = s.lastSuccess ? ("更新於 " + timeHHMMSS(new Date(s.lastSuccess))) : "";
 
   bigEl.textContent = bigCountdownText(secsArr[0]);
   bigEl.classList.toggle("soon", secsArr[0]!==null && secsArr[0]<=60);
@@ -295,7 +319,7 @@ function renderCard(cardId){
 
 function renderAllCards(){ Object.keys(state).forEach(renderCard); }
 
-/* ========== MTR fetch（帶cache，同一車站/綫淨係fetch一次） ========== */
+/* ========== MTR fetch（帶cache + pending-promise，防止race condition重複fetch） ========== */
 
 const mtrCache = {};
 async function fetchMtrStation(line, sta){
@@ -314,7 +338,7 @@ async function fetchMtrStation(line, sta){
       mtrCache[key] = { ts:Date.now(), data };
       return data;
     }catch(err){
-      delete mtrCache[key]; // 失敗要清走cache，否則下次會攞到同一個已經reject嘅promise
+      delete mtrCache[key]; // 失敗要清走cache，否則下次會攞到同一個已reject嘅promise
       throw err;
     }
   })();
@@ -372,29 +396,37 @@ async function fetchGmbRouteStops(routeId, routeSeq){
 }
 
 // 搵到目標站之後，攞返 route_id / route_seq / stop_seq / dest 名
+// 用 Promise.all 令唔同方向嘅 route-stop 查詢可以並行，加快首次載入
 async function findGmbStop(cfg){
   const routeList = await fetchGmbRoute(cfg.region, cfg.route);
   if(routeList.length===0) throw new Error("搵唔到路線資料");
 
-  const matches = [];
+  const lookupTasks = [];
   for(const r of routeList){
     const routeId = r.route_id;
     for(const dirInfo of (r.directions || [])){
       if(cfg.direction && dirInfo.route_seq !== cfg.direction) continue;
-      const stops = await fetchGmbRouteStops(routeId, dirInfo.route_seq);
-      stops.forEach(s=>{
-        if(s.name_tc && s.name_tc.includes(cfg.stopMatch)){
-          matches.push({
-            route_id: routeId,
-            route_seq: dirInfo.route_seq,
-            stop_seq: s.stop_seq,
-            name: s.name_tc,
-            dest: dirInfo.dest_tc,
-          });
-        }
-      });
+      lookupTasks.push(
+        fetchGmbRouteStops(routeId, dirInfo.route_seq).then(stops=>({ routeId, dirInfo, stops }))
+      );
     }
   }
+
+  const results = await Promise.all(lookupTasks);
+  const matches = [];
+  results.forEach(({ routeId, dirInfo, stops })=>{
+    stops.forEach(s=>{
+      if(s.name_tc && s.name_tc.includes(cfg.stopMatch)){
+        matches.push({
+          route_id: routeId,
+          route_seq: dirInfo.route_seq,
+          stop_seq: s.stop_seq,
+          name: s.name_tc,
+          dest: dirInfo.dest_tc,
+        });
+      }
+    });
+  });
 
   if(matches.length===0) throw new Error(`搵唔到站名含「${cfg.stopMatch}」`);
   const occIdx = (cfg.occurrence || 1) - 1;
@@ -449,20 +481,21 @@ const lastUpdateTextEl = document.getElementById("lastUpdateText");
 const refreshBtn = document.getElementById("refreshBtn");
 
 function updateLastUpdateDisplay(){
-  const now = new Date();
-  lastUpdateTextEl.textContent = "最後更新: " + now.toTimeString().slice(0,8);
+  lastUpdateTextEl.textContent = "最後更新: " + timeHHMMSS(new Date());
 }
 
 let isFetching = false;
 async function fetchAll(){
   if(isFetching) return; // 避免手動refresh同自動refresh同時執行
   isFetching = true;
+  refreshBtn.disabled = true;
   refreshBtn.classList.add("spinning");
   try{
     await Promise.all(fetchTasks.map(fn => fn()));
   } finally {
     updateLastUpdateDisplay();
     refreshBtn.classList.remove("spinning");
+    refreshBtn.disabled = false;
     isFetching = false;
   }
 }
@@ -487,25 +520,45 @@ function masterTick(){
 
 /* ---- 手動即刻refresh按鈕：即刻fetch + reset倒數 ---- */
 refreshBtn.addEventListener("click", ()=>{
+  if(isFetching) return;
   tickCount = 0;
   updateRefreshIndicator(REFRESH_SECONDS);
   fetchAll();
 });
 
-/* ========== Tab 篩選 ========== */
+/* ========== Tab 篩選（記住上次揀嘅filter） ========== */
+
+const FILTER_STORAGE_KEY = "eta-filter-pref";
+
+function applyFilter(f){
+  document.querySelectorAll(".card").forEach(card=>{
+    card.style.display = (f==="all"||card.dataset.type===f) ? "" : "none";
+  });
+}
+
+function setActiveTab(f){
+  document.querySelectorAll(".tab").forEach(b=>{
+    b.classList.toggle("active", b.dataset.filter===f);
+  });
+}
 
 document.querySelectorAll(".tab").forEach(btn=>{
   btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
     const f = btn.dataset.filter;
-    document.querySelectorAll(".card").forEach(card=>{
-      card.style.display = (f==="all"||card.dataset.type===f) ? "" : "none";
-    });
+    setActiveTab(f);
+    applyFilter(f);
+    try{ localStorage.setItem(FILTER_STORAGE_KEY, f); }catch(e){ /* 忽略私隱模式錯誤 */ }
   });
 });
 
 /* ========== 啟動 ========== */
+
+const savedFilter = (()=>{
+  try{ return localStorage.getItem(FILTER_STORAGE_KEY) || "all"; }
+  catch(e){ return "all"; }
+})();
+setActiveTab(savedFilter);
+applyFilter(savedFilter);
 
 fetchAll();
 updateRefreshIndicator(REFRESH_SECONDS);
