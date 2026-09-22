@@ -46,6 +46,8 @@
   }
   .tab.active{ background:#0a84ff; }
 
+  <div id="alertBanner" style="max-width:1100px;margin:0 auto;padding:0 14px;"></div>
+ 
   .grid{
     display:grid;
     grid-template-columns:repeat(2,1fr);
@@ -486,6 +488,7 @@ function updateLastUpdateDisplay(){
 
 let isFetching = false;
 async function fetchAll(){
+ await Promise.all([...fetchTasks.map(fn => fn()), loadAlerts()]);
   if(isFetching) return; // 避免手動refresh同自動refresh同時執行
   isFetching = true;
   refreshBtn.disabled = true;
@@ -500,6 +503,59 @@ async function fetchAll(){
   }
 }
 
+/* ========== Fetch Warnings ========== */
+ 
+ async function fetchWeatherWarnings(){
+  try{
+    const res = await fetchWithTimeout("https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc");
+    const json = await res.json();
+    // warnsum 格式：keys 係 code (WFIRE/WTS/WRAIN...)，value 係 {name, type, actionCode...}
+    return Object.values(json).filter(w => w && w.actionCode !== "CANCEL");
+  }catch(e){
+    return []; // 攞唔到就當冇警告，唔阻住其他卡
+  }
+}
+
+ async function fetchTrafficNews(){
+  try{
+    const res = await fetchWithTimeout("填返你喺data.gov.hk揾到嘅實際XML網址");
+    const text = await res.text();
+    const xml = new DOMParser().parseFromString(text, "text/xml");
+    const messages = Array.from(xml.getElementsByTagName("message"));
+    return messages.slice(0,5).map(m => ({
+      text: m.getElementsByTagName("ChinText")[0]?.textContent
+          || m.getElementsByTagName("CONTENT_CN")[0]?.textContent
+          || "",
+    })).filter(m => m.text);
+  }catch(e){
+    return [];
+  }
+}
+
+ async function loadAlerts(){
+  const [weatherWarnings, trafficNews] = await Promise.all([
+    fetchWeatherWarnings(),
+    fetchTrafficNews()
+  ]);
+
+  const banner = document.getElementById("alertBanner");
+  banner.innerHTML = "";
+
+  weatherWarnings.forEach(w=>{
+    const div = document.createElement("div");
+    div.style = "background:#3a1d1d;color:#ff9f0a;padding:10px 16px;border-radius:14px;margin-bottom:8px;font-size:13px;";
+    div.textContent = `⚠️ ${w.name}`;
+    banner.appendChild(div);
+  });
+
+  trafficNews.forEach(n=>{
+    const div = document.createElement("div");
+    div.style = "background:#1c1e24;color:#b8bcc4;padding:10px 16px;border-radius:14px;margin-bottom:8px;font-size:13px;";
+    div.textContent = `🚧 ${n.text}`;
+    banner.appendChild(div);
+  });
+}
+ 
 /* ========== Master clock ========== */
 
 const REFRESH_SECONDS = 30;
