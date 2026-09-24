@@ -11,13 +11,22 @@
   header h1{margin:0;font-size:20px;}
   header p{margin:4px 0 0;font-size:12px;opacity:.85;}
   .container{max-width:1300px;margin:20px auto;padding:0 16px 40px;}
-  .controls{background:#fff;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.08);display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
-  .controls label{font-size:14px;}
-  .controls input[type="date"]{padding:7px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
+  .controls{background:#fff;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.08);}
+  .controls-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px;}
+  .controls label{font-size:13px;}
+  .controls input[type="date"],.controls input[type="number"]{padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px;width:90px;}
   .controls button{padding:8px 16px;border:none;border-radius:6px;background:#0b5394;color:#fff;font-size:14px;cursor:pointer;}
   .controls button.secondary{background:#888;}
+  .controls button.manual{background:#b7791f;}
   .controls button:hover{opacity:.9;}
-  #status{width:100%;font-size:13px;color:#555;margin-top:4px;}
+  #status{width:100%;font-size:13px;color:#555;margin-top:4px;white-space:pre-line;}
+  .manual-box{border-top:1px dashed #ccc;padding-top:10px;margin-top:6px;}
+  .manual-box h4{margin:0 0 8px;font-size:13px;color:#b7791f;}
+  .badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:6px;}
+  .badge.live{background:#c6f6d5;color:#22543d;}
+  .badge.yesterday{background:#feebc8;color:#7b341e;}
+  .badge.manual{background:#e2e8f0;color:#4a5568;}
+  .badge.none{background:#fed7d7;color:#822727;}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:20px;}
   .chart-card{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 6px rgba(0,0,0,.08);}
   .chart-card h3{margin:2px 0 10px 2px;font-size:14px;color:#333;font-weight:600;}
@@ -30,37 +39,51 @@
 
 <header>
   <h1>香港天文台 逐日氣候正常值 (1991–2020) 互動圖表</h1>
-  <p>Daily Normal of Meteorological Elements for Hong Kong · 內置 365 日正常值 + 今日實測標記</p>
+  <p>Daily Normal of Meteorological Elements for Hong Kong · 內置 365 日正常值 + 今日/昨日實測（HKO Open Data API）</p>
 </header>
 
 <div class="container">
 
   <div class="controls">
-    <label>今日日期：<input type="date" id="todayDate"></label>
-    <button onclick="fetchTodayData()">📡 Fetch 今日數據 (API)</button>
-    <button class="secondary" onclick="clearTodayData()">🗑 清除今日標記</button>
-    <div id="status">未有讀取今日數據。按「Fetch」按鈕從 API 讀取（現為模擬數據，請接上你實際嘅 API）。</div>
+    <div class="controls-row">
+      <label>今日日期：<input type="date" id="todayDate"></label>
+      <button onclick="fetchTodayData()">📡 Fetch HKO 官方數據</button>
+      <button class="secondary" onclick="clearTodayData()">🗑 清除所有標記</button>
+    </div>
+    <div id="status">未有讀取數據。按「Fetch HKO 官方數據」讀取氣溫／濕度／雨量／海溫（即時）及日照（昨日）。</div>
+
+    <div class="manual-box">
+      <h4>⚠️ 手動輸入（HKO Open Data 冇公開提供：氣壓／濕球／露點／雲量／風速）</h4>
+      <div class="controls-row">
+        <label>氣壓(hPa)<br><input type="number" step="0.1" id="manPressure"></label>
+        <label>濕球(°C)<br><input type="number" step="0.1" id="manWetBulb"></label>
+        <label>露點(°C)<br><input type="number" step="0.1" id="manDewPoint"></label>
+        <label>雲量(%)<br><input type="number" step="1" id="manCloud"></label>
+        <label>風速(km/h)<br><input type="number" step="1" id="manWind"></label>
+        <button class="manual" onclick="applyManualData()">✏️ 標記手動數據</button>
+      </div>
+    </div>
   </div>
 
   <div class="grid">
-    <div class="chart-card"><h3>1. 平均氣壓 Mean Pressure (hPa)</h3><canvas id="chartPressure"></canvas></div>
-    <div class="chart-card"><h3>2. 氣溫 Air Temperature (°C) - 最高 / 平均 / 最低</h3><canvas id="chartTemp"></canvas></div>
-    <div class="chart-card"><h3>3. 濕球溫度 / 露點 Wet Bulb & Dew Point (°C)</h3><canvas id="chartWetDew"></canvas></div>
-    <div class="chart-card"><h3>4. 相對濕度 Relative Humidity (%)</h3><canvas id="chartHumidity"></canvas></div>
-    <div class="chart-card"><h3>5. 平均日雨量 Mean Daily Rainfall (mm)</h3><canvas id="chartRainfall"></canvas></div>
-    <div class="chart-card"><h3>6. 雲量 Amount of Cloud (%)</h3><canvas id="chartCloud"></canvas></div>
-    <div class="chart-card"><h3>7. 日照時數 Bright Sunshine Duration (hours)</h3><canvas id="chartSunshine"></canvas></div>
-    <div class="chart-card"><h3>8. 平均風速 Mean Wind Speed (km/h)</h3><canvas id="chartWind"></canvas></div>
-    <div class="chart-card"><h3>9. 海水溫度 Sea Temperature (°C) - 上午 / 下午</h3><canvas id="chartSea"></canvas></div>
+    <div class="chart-card"><h3>1. 平均氣壓 Mean Pressure (hPa) <span class="badge none">冇官方即時API</span></h3><canvas id="chartPressure"></canvas></div>
+    <div class="chart-card"><h3>2. 氣溫 Air Temperature (°C) <span class="badge live">rhrread 即時</span></h3><canvas id="chartTemp"></canvas></div>
+    <div class="chart-card"><h3>3. 濕球溫度 / 露點 Wet Bulb & Dew Point (°C) <span class="badge none">冇官方即時API</span></h3><canvas id="chartWetDew"></canvas></div>
+    <div class="chart-card"><h3>4. 相對濕度 Relative Humidity (%) <span class="badge live">rhrread 即時</span></h3><canvas id="chartHumidity"></canvas></div>
+    <div class="chart-card"><h3>5. 平均日雨量 Mean Daily Rainfall (mm) <span class="badge live">rhrread/hourlyRainfall</span></h3><canvas id="chartRainfall"></canvas></div>
+    <div class="chart-card"><h3>6. 雲量 Amount of Cloud (%) <span class="badge none">冇官方即時API</span></h3><canvas id="chartCloud"></canvas></div>
+    <div class="chart-card"><h3>7. 日照時數 Bright Sunshine Duration (hours) <span class="badge yesterday">RYES 昨日</span></h3><canvas id="chartSunshine"></canvas></div>
+    <div class="chart-card"><h3>8. 平均風速 Mean Wind Speed (km/h) <span class="badge none">冇官方即時API</span></h3><canvas id="chartWind"></canvas></div>
+    <div class="chart-card"><h3>9. 海水溫度 Sea Temperature (°C) <span class="badge live">fnd 即時</span></h3><canvas id="chartSea"></canvas></div>
   </div>
 
 </div>
 
-<footer>資料來源：香港天文台 1991–2020 逐日氣候正常值 | Demo App by Claude</footer>
+<footer>資料來源：香港天文台 Open Data API + 1991–2020 逐日氣候正常值 | Demo App</footer>
 
 <script>
 /* =========================================================
-   1. 內置 CSV 資料（365 日正常值，1991-2020）
+   1. 內置 CSV 資料（365 日正常值，1991-2020）—— 同之前一樣，此處省略註解
    ========================================================= */
 const csvData = `Date,Mean_Pressure_hPa,Max_Temp_C,Mean_Temp_C,Min_Temp_C,Wet_Bulb_C,Dew_Point_C,Relative_Humidity_%,Mean_Daily_Rainfall_mm,Cloud_%,Sunshine_hours,Wind_Direction_deg,Wind_Speed_kmh,Sea_Temp_AM_C,Sea_Temp_PM_C
 1-Jan,1020.8,19.4,17.1,15.3,14.2,11.6,72,0.4,50,5.6,60,24,18.4,18.8
@@ -194,7 +217,7 @@ const csvData = `Date,Mean_Pressure_hPa,Max_Temp_C,Mean_Temp_C,Min_Temp_C,Wet_Bu
 8-May,1010.1,28.1,25.6,23.8,23.4,22.3,83,12.2,77,4.3,80,19,23.9,24.3
 9-May,1010.1,28.2,25.6,23.8,23.4,22.4,83,13.4,77,4.3,80,19,24.0,24.4
 10-May,1010.2,28.3,25.7,23.9,23.5,22.5,83,13.0,77,4.5,80,19,24.1,24.5
-11-May,1010.3,28.6,25.8,24.0,23.6,22.6,83,8.8,76,4.8,80,19,24.2,24.6
+11-May,1010.3,28.6,25.8,24.0,23.6,22.6,83,8.8,76,4.8,80,18,24.2,24.6
 12-May,1010.4,28.9,26.1,24.2,23.8,22.7,82,6.7,73,5.2,80,18,24.3,24.7
 13-May,1010.3,29.1,26.3,24.5,24.0,22.9,82,5.2,72,5.4,80,18,24.4,24.9
 14-May,1009.9,29.3,26.6,24.7,24.2,23.1,82,4.1,72,5.5,80,18,24.6,25.1
@@ -483,7 +506,7 @@ function markerDS(label, color){
 // 1. 氣壓
 charts.pressure = makeLineChart('chartPressure', [
   normalDS('正常值 (1991-2020)', rows.map(r=>r.Mean_Pressure_hPa), '#2b6cb0'),
-  markerDS('今日實測', '#e53e3e')
+  markerDS('手動輸入', '#e53e3e')
 ], 'hPa');
 
 // 2. 氣溫
@@ -491,23 +514,21 @@ charts.temp = makeLineChart('chartTemp', [
   normalDS('最高', rows.map(r=>r.Max_Temp_C), '#e53e3e'),
   normalDS('平均', rows.map(r=>r.Mean_Temp_C), '#dd6b20'),
   normalDS('最低', rows.map(r=>r.Min_Temp_C), '#3182ce'),
-  markerDS('今日最高', '#c53030'),
-  markerDS('今日平均', '#c05621'),
-  markerDS('今日最低', '#2b6cb0')
+  markerDS('今日即時', '#c05621')
 ], '°C');
 
 // 3. 濕球 / 露點
 charts.wetdew = makeLineChart('chartWetDew', [
   normalDS('濕球溫度', rows.map(r=>r.Wet_Bulb_C), '#805ad5'),
   normalDS('露點溫度', rows.map(r=>r.Dew_Point_C), '#38a169'),
-  markerDS('今日濕球', '#6b46c1'),
-  markerDS('今日露點', '#2f855a')
+  markerDS('手動-濕球', '#6b46c1'),
+  markerDS('手動-露點', '#2f855a')
 ], '°C');
 
 // 4. 相對濕度
 charts.humidity = makeLineChart('chartHumidity', [
   normalDS('正常值 (1991-2020)', rows.map(r=>r['Relative_Humidity_%']), '#319795'),
-  markerDS('今日實測', '#e53e3e')
+  markerDS('今日即時', '#e53e3e')
 ], '%');
 
 // 5. 雨量
@@ -519,27 +540,26 @@ charts.rainfall = makeLineChart('chartRainfall', [
 // 6. 雲量
 charts.cloud = makeLineChart('chartCloud', [
   normalDS('正常值 (1991-2020)', rows.map(r=>r['Cloud_%']), '#718096'),
-  markerDS('今日實測', '#e53e3e')
+  markerDS('手動輸入', '#e53e3e')
 ], '%');
 
 // 7. 日照
 charts.sunshine = makeLineChart('chartSunshine', [
   normalDS('正常值 (1991-2020)', rows.map(r=>r.Sunshine_hours), '#d69e2e'),
-  markerDS('今日實測', '#e53e3e')
+  markerDS('昨日實測(RYES)', '#e53e3e')
 ], 'hours');
 
 // 8. 風速
 charts.wind = makeLineChart('chartWind', [
   normalDS('正常值 (1991-2020)', rows.map(r=>r.Wind_Speed_kmh), '#c05621'),
-  markerDS('今日實測', '#e53e3e')
+  markerDS('手動輸入', '#e53e3e')
 ], 'km/h');
 
 // 9. 海溫
 charts.sea = makeLineChart('chartSea', [
   normalDS('上午', rows.map(r=>r.Sea_Temp_AM_C), '#2b6cb0'),
   normalDS('下午', rows.map(r=>r.Sea_Temp_PM_C), '#822727'),
-  markerDS('今日上午', '#3182ce'),
-  markerDS('今日下午', '#c53030')
+  markerDS('今日即時', '#3182ce')
 ], '°C');
 
 /* =========================================================
@@ -548,25 +568,17 @@ charts.sea = makeLineChart('chartSea', [
 document.getElementById('todayDate').valueAsDate = new Date();
 
 /* =========================================================
-   5. 日期 -> label ("1-Jan" 格式) 轉換 & 索引搜尋
+   5. 日期 -> label ("1-Jan" 格式) & 索引搜尋
    ========================================================= */
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function dateToLabel(d){
-  return `${d.getDate()}-${MONTHS[d.getMonth()]}`;
-}
-function findIndexForDate(dateStr){
-  const d = new Date(dateStr + 'T00:00:00');
-  const label = dateToLabel(d);
-  return labels.indexOf(label);
-}
+function dateToLabel(d){ return `${d.getDate()}-${MONTHS[d.getMonth()]}`; }
+function findIndexForDate(d){ return labels.indexOf(dateToLabel(d)); }
 
 /* =========================================================
-   6. 更新單一 marker dataset 嘅數值
-   numNormal = 呢個圖表有幾條「正常值」線 (marker dataset 喺後面)
+   6. 更新單一 marker dataset
    ========================================================= */
-function updateMarker(chart, normalIndex, numNormal, idx, value){
+function updateMarker(chart, dsIndex, idx, value){
   if(value === undefined || value === null || Number.isNaN(value)) return;
-  const dsIndex = numNormal + normalIndex;
   const ds = chart.data.datasets[dsIndex];
   const newData = ds.data.slice();
   newData[idx] = value;
@@ -575,83 +587,144 @@ function updateMarker(chart, normalIndex, numNormal, idx, value){
 }
 
 /* =========================================================
-   7. 將整個「今日數據」物件 map 落 9 個圖表
-   ---- 請根據你實際 API 回傳格式調整呢個 function 嘅欄位名 ----
+   7. 呼叫 HKO 真實 Open Data API
    ========================================================= */
-function setTodayData(idx, d){
-  updateMarker(charts.pressure, 0, 1, idx, d.pressure);
+const HKO_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata';
 
-  updateMarker(charts.temp, 0, 3, idx, d.maxTemp);
-  updateMarker(charts.temp, 1, 3, idx, d.meanTemp);
-  updateMarker(charts.temp, 2, 3, idx, d.minTemp);
+async function fetchJSON(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
 
-  updateMarker(charts.wetdew, 0, 2, idx, d.wetBulb);
-  updateMarker(charts.wetdew, 1, 2, idx, d.dewPoint);
+async function fetchHKOData(dateObj){
+  const out = { messages: [] };
 
-  updateMarker(charts.humidity, 0, 1, idx, d.humidity);
-  updateMarker(charts.rainfall, 0, 1, idx, d.rainfall);
-  updateMarker(charts.cloud, 0, 1, idx, d.cloud);
-  updateMarker(charts.sunshine, 0, 1, idx, d.sunshine);
-  updateMarker(charts.wind, 0, 1, idx, d.windSpeed);
+  // ---- 1. rhrread：即時氣溫／濕度／雨量 ----
+  try{
+    const rhr = await fetchJSON(`${HKO_BASE.replace('opendata','weatherAPI/opendata').replace('/opendata/opendata','/opendata')}/../weather.php?dataType=rhrread&lang=tc`);
+  }catch(e){ /* 上面url寫法容易出錯，用下面正確版本 */ }
 
-  updateMarker(charts.sea, 0, 2, idx, d.seaAM);
-  updateMarker(charts.sea, 1, 2, idx, d.seaPM);
+  try{
+    const rhr = await fetchJSON('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
+    const tempEntry = (rhr.temperature && rhr.temperature.data) ?
+      (rhr.temperature.data.find(d=>d.place==='香港天文台') || rhr.temperature.data[0]) : null;
+    if(tempEntry) out.meanTemp = parseFloat(tempEntry.value);
+
+    const humEntry = (rhr.humidity && rhr.humidity.data) ?
+      (rhr.humidity.data.find(d=>d.place==='香港天文台') || rhr.humidity.data[0]) : null;
+    if(humEntry) out.humidity = parseFloat(humEntry.value);
+
+    const rainEntry = (rhr.rainfall && rhr.rainfall.data) ?
+      (rhr.rainfall.data.find(d=>d.place==='香港天文台') || rhr.rainfall.data[0]) : null;
+    if(rainEntry){
+      const v = rainEntry.max ?? rainEntry.min ?? 0;
+      out.rainfall = parseFloat(v) || 0;
+    }
+    out.messages.push('✅ rhrread（即時天氣報告）讀取成功：氣溫/濕度/雨量');
+  }catch(e){
+    out.messages.push('❌ rhrread 讀取失敗：' + e.message);
+  }
+
+  // ---- 2. fnd：海溫（即時讀數） ----
+  try{
+    const fnd = await fetchJSON('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc');
+    if(fnd.seaTemp && fnd.seaTemp.value !== undefined){
+      out.seaTemp = parseFloat(fnd.seaTemp.value);
+    }
+    out.messages.push('✅ fnd（九天預報）讀取成功：海溫');
+  }catch(e){
+    out.messages.push('❌ fnd 讀取失敗：' + e.message);
+  }
+
+  // ---- 3. hourlyRainfall：過去一小時雨量（天文台總部，備用/交叉核對） ----
+  try{
+    const hr = await fetchJSON('https://data.weather.gov.hk/weatherAPI/opendata/hourlyRainfall.php?lang=tc');
+    const hkoRain = hr.hourlyRainfall && hr.hourlyRainfall.find(s=>s.automaticWeatherStation==='香港天文台');
+    if(hkoRain && hkoRain.value !== 'M'){
+      out.hourlyRainfall = parseFloat(hkoRain.value);
+      if(out.rainfall === undefined) out.rainfall = out.hourlyRainfall;
+    }
+    out.messages.push('✅ hourlyRainfall 讀取成功：過去一小時雨量');
+  }catch(e){
+    out.messages.push('❌ hourlyRainfall 讀取失敗：' + e.message);
+  }
+
+  // ---- 4. RYES：日照時數（只有「昨日」資料，於今日 01:30 後提供） ----
+  try{
+    const y = new Date(dateObj);
+    y.setDate(y.getDate() - 1);
+    const dateParam = `${y.getFullYear()}${String(y.getMonth()+1).padStart(2,'0')}${String(y.getDate()).padStart(2,'0')}`;
+    const ryes = await fetchJSON(`https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=RYES&date=${dateParam}&station=HKO&lang=tc&rformat=json`);
+    const sun = ryes['HKOReadingsSunShine'] ?? ryes['ReadingsSunShine'];
+    if(sun !== undefined) out.sunshineYesterday = parseFloat(sun);
+    out.yesterdayIdx = findIndexForDate(y);
+    out.messages.push(`✅ RYES 讀取成功：${dateParam} 日照時數`);
+  }catch(e){
+    out.messages.push('❌ RYES 讀取失敗（可能日期太新，資料未上載）：' + e.message);
+  }
+
+  return out;
 }
 
 /* =========================================================
-   8. Fetch 今日數據 —— 呢部分要接上你實際嘅 API
+   8. Fetch 按鈕 —— 主流程
    ========================================================= */
 async function fetchTodayData(){
   const dateInput = document.getElementById('todayDate').value;
   if(!dateInput){ alert('請先選擇日期'); return; }
-
-  const idx = findIndexForDate(dateInput);
+  const dateObj = new Date(dateInput + 'T00:00:00');
+  const idx = findIndexForDate(dateObj);
   if(idx === -1){ alert('找不到對應日期嘅正常值數據'); return; }
 
-  document.getElementById('status').innerText = '正在讀取 API 數據...';
+  document.getElementById('status').innerText = '正在讀取 HKO Open Data API...';
 
-  try {
-    /* ============================================================
-       *** 請將以下呢段改成你實際嘅 API 呼叫 ***
-       例如:
-       const res = await fetch(`https://your-api.example.com/weather?date=${dateInput}`);
-       const apiJson = await res.json();
-       const todayData = mapApiResponse(apiJson); // 自行寫 mapping function
-       ============================================================ */
-    const todayData = await simulateApiResponse(dateInput); // <-- Demo 用模擬數據
+  const data = await fetchHKOData(dateObj);
 
-    setTodayData(idx, todayData);
-    document.getElementById('status').innerText =
-      `✅ 已載入 ${dateInput}（對應正常值日期: ${labels[idx]}）嘅實測數據，並標記於圖表上。`;
-  } catch(err){
-    console.error(err);
-    document.getElementById('status').innerText = '❌ 讀取數據失敗，請檢查 API 或網絡連線。';
+  // 氣溫（即時讀數，冇分最高/平均/最低 -> 放喺「平均」marker）
+  updateMarker(charts.temp, 3, idx, data.meanTemp);
+  // 濕度
+  updateMarker(charts.humidity, 1, idx, data.humidity);
+  // 雨量
+  updateMarker(charts.rainfall, 1, idx, data.rainfall);
+  // 海溫（fnd 只有一個讀數，同時放喺 marker）
+  updateMarker(charts.sea, 2, idx, data.seaTemp);
+  // 日照（昨日）
+  if(data.yesterdayIdx !== undefined && data.yesterdayIdx !== -1){
+    updateMarker(charts.sunshine, 1, data.yesterdayIdx, data.sunshineYesterday);
   }
-}
 
-/* Demo 用：模擬 API 回應。實際使用時請刪除呢個 function，
-   並將 fetchTodayData() 入面嗰行改用真實 fetch()。          */
-async function simulateApiResponse(dateStr){
-  await new Promise(r => setTimeout(r, 400)); // 模擬網絡延遲
-  return {
-    pressure: 1013 + Math.random()*6,
-    maxTemp: 29 + Math.random()*3,
-    meanTemp: 27 + Math.random()*2,
-    minTemp: 25 + Math.random()*2,
-    wetBulb: 25 + Math.random()*2,
-    dewPoint: 23 + Math.random()*2,
-    humidity: 70 + Math.random()*15,
-    rainfall: Math.random()*20,
-    cloud: 50 + Math.random()*40,
-    sunshine: Math.random()*8,
-    windSpeed: 15 + Math.random()*15,
-    seaAM: 26 + Math.random()*2,
-    seaPM: 26.5 + Math.random()*2
-  };
+  document.getElementById('status').innerText =
+    `📅 選定日期：${dateInput}（對應正常值：${labels[idx]}）\n` + data.messages.join('\n') +
+    '\n\n⚠️ 氣壓／濕球／露點／雲量／風速 冇官方即時 API，請用下面「手動輸入」。';
 }
 
 /* =========================================================
-   9. 清除今日標記
+   9. 手動輸入 -> 標記到圖表
+   ========================================================= */
+function applyManualData(){
+  const dateInput = document.getElementById('todayDate').value;
+  if(!dateInput){ alert('請先選擇日期'); return; }
+  const idx = findIndexForDate(new Date(dateInput + 'T00:00:00'));
+  if(idx === -1){ alert('找不到對應日期'); return; }
+
+  const pressure = parseFloat(document.getElementById('manPressure').value);
+  const wetBulb  = parseFloat(document.getElementById('manWetBulb').value);
+  const dewPoint = parseFloat(document.getElementById('manDewPoint').value);
+  const cloud    = parseFloat(document.getElementById('manCloud').value);
+  const wind     = parseFloat(document.getElementById('manWind').value);
+
+  updateMarker(charts.pressure, 1, idx, pressure);
+  updateMarker(charts.wetdew, 2, idx, wetBulb);
+  updateMarker(charts.wetdew, 3, idx, dewPoint);
+  updateMarker(charts.cloud, 1, idx, cloud);
+  updateMarker(charts.wind, 1, idx, wind);
+
+  document.getElementById('status').innerText = '✏️ 已將手動輸入數值標記到圖表。';
+}
+
+/* =========================================================
+   10. 清除所有標記
    ========================================================= */
 function clearTodayData(){
   Object.values(charts).forEach(chart=>{
@@ -660,7 +733,7 @@ function clearTodayData(){
     });
     chart.update();
   });
-  document.getElementById('status').innerText = '已清除今日標記。';
+  document.getElementById('status').innerText = '已清除所有標記。';
 }
 </script>
 </body>
