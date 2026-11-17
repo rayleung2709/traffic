@@ -1109,6 +1109,35 @@ main {
     margin: 0 4px;
   }
 }
+.journey-time {
+  margin: 6px 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* 分隔線只加喺兩間實際顯示的診所之間 */
+.clinic + .clinic {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.clinic:not([hidden]) ~ .clinic:not([hidden]) {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+/* 保留不同終點／月台的提示 */
+.following-detail:not([hidden]) {
+  display: block !important;
+}
+
+.following-row {
+  flex-wrap: wrap;
+}
+
+.following-detail {
+  flex-basis: 100%;
+}
   </style>
 </head>
 
@@ -1178,10 +1207,7 @@ main {
 
       <div class="eta-stack">
         <div class="countdown" data-role="countdown">—</div>
-        <div class="following" data-role="following" hidden>
-          <span data-role="second"></span>
-          <span data-role="third" hidden></span>
-        </div>
+<div class="following" data-role="following" hidden></div>
       </div>
 
       <p class="status" data-role="status" hidden></p>
@@ -1432,6 +1458,84 @@ main {
         ]
       }
     ];
+
+// 每條方案的各段搭車時間（分鐘）。
+// null = 未設定；請換成實際分鐘數。
+// 同一個 box 有 6／15 兩個選擇，只計一段，唔加埋兩架車。
+
+const JOURNEY_MINUTES = {
+  hengon: {
+    out: [
+      [21] // 鑽石山 → 恒安
+    ],
+    back: [
+      [21] // 恒安 → 鑽石山
+    ]
+  },
+
+  causeway: {
+    out: [
+      [16, 11, 8], // 鑽石山 → 紅磡 → 金鐘 → 銅鑼灣
+      [16, 10, 8], // 鑽石山 → 旺角 → 金鐘 → 銅鑼灣
+      [15, 8, 7]  // 鑽石山 → 油塘 → 北角 → 銅鑼灣
+    ],
+    back: [
+      [8, 11, 16], // 銅鑼灣 → 金鐘 → 紅磡 → 鑽石山
+      [8, 10, 16], // 銅鑼灣 → 金鐘 → 旺角 → 鑽石山
+      [7, 8, 15]  // 銅鑼灣 → 北角 → 油塘 → 鑽石山
+    ]
+  },
+
+  quarry: {
+    out: [
+      [15, 8] // 鑽石山 → 油塘 → 鰂魚涌
+    ],
+    back: [
+      [8, 15] // 鰂魚涌 → 油塘 → 鑽石山
+    ]
+  },
+
+  mongkok: {
+    out: [
+      [16] // 鑽石山 → 旺角
+    ],
+    back: [
+      [16] // 旺角 → 鑽石山
+    ]
+  },
+
+  hospital: {
+    out: [
+      [16, 11, 20],       // 鑽石山 → 紅磡 → 金鐘 → 醫院（6／15）
+      [16, 10, 20],       // 鑽石山 → 旺角 → 金鐘 → 醫院（6／15）
+      [15, 8, 7, 20]  // 鑽石山 → 油塘 → 北角 → 銅鑼灣 → 醫院（26）
+    ],
+    back: [
+      [20, 11, 16],       // 醫院 → 金鐘 → 紅磡 → 鑽石山（6／15）
+      [20, 10, 16],       // 醫院 → 金鐘 → 旺角 → 鑽石山（6／15）
+      [20, 7, 8, 15]  // 醫院 → 銅鑼灣 → 北角 → 油塘 → 鑽石山（26）
+    ]
+  }
+};
+
+function journeyLabel(clinicId, direction, routeIndex, stageCount) {
+  const minutes =
+    JOURNEY_MINUTES[clinicId]?.[direction]?.[routeIndex];
+
+  const complete =
+    Array.isArray(minutes) &&
+    minutes.length === stageCount &&
+    minutes.every(value =>
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0
+    );
+
+  if (!complete) return "車程：未設定";
+
+  const total = minutes.reduce((sum, value) => sum + value, 0);
+  return `車程約 ${Math.round(total)} 分鐘 · 不包括候車及步行`;
+}
 
     // 工具及儲存
 
@@ -2280,7 +2384,20 @@ const list = makeElement("div", "legs");
           list.appendChild(block);
         });
 
-        panel.appendChild(list);
+const journeyTime = makeElement(
+          "p",
+          "journey-time",
+          journeyLabel(
+            clinic.id,
+            direction,
+            routeIndex,
+            route.stages.length
+          )
+        );
+
+        journeyTime.title = "只計搭車，不含候車及轉車步行";
+
+        panel.append(list, journeyTime);
         panels.push(panel);
       });
 
