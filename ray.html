@@ -2145,52 +2145,6 @@ function createCommute(clinic, direction) {
 
       return section;
     }
-      const out = direction === "out";
-      const section = makeElement("section", "commute");
-      const heading = makeElement("div", "commute-heading");
-
-      heading.append(
-        makeElement(
-          "span",
-          `commute-tag ${out ? "out" : "back"}`,
-          out ? "返工" : "放工"
-        ),
-        makeElement(
-          "h3",
-          "",
-          out
-            ? `鑽石山 → ${clinic.name}`
-            : `${clinic.name} → 鑽石山`
-        )
-      );
-
-      section.appendChild(heading);
-
-      for (const route of clinic[direction]) {
-        const block = makeElement("section", "path");
-        const header = makeElement("div", "path-header");
-
-        header.append(
-          makeElement("h4", "path-title", route.name),
-          makeElement("p", "path-description", route.description)
-        );
-
-        const grid = makeElement("div", "legs");
-
-        route.stages.forEach((stage, index) => {
-          for (const legId of stage) {
-            grid.appendChild(
-              createCard(legId, index + 1, stage.length > 1)
-            );
-          }
-        });
-
-        block.append(header, grid);
-        section.appendChild(block);
-      }
-
-      return section;
-    }
 
 function buildPage() {
       for (const [id] of LEGS) {
@@ -2334,31 +2288,7 @@ function buildPage() {
 
       setDirection(selectedDirection);
     }
-      for (const [id] of LEGS) {
-        states.set(id, emptyState());
-      }
-
-      const fragment = document.createDocumentFragment();
-
-      for (const clinic of CLINICS) {
-        const section = makeElement("section", "clinic");
-        const heading = makeElement("h2", "clinic-title", clinic.name);
-
-        heading.id = `clinic-title-${clinic.id}`;
-        section.setAttribute("aria-labelledby", heading.id);
-
-        section.append(
-          heading,
-          createCommute(clinic, "out"),
-          createCommute(clinic, "back")
-        );
-
-        clinicElements.set(clinic.id, section);
-        fragment.appendChild(section);
-      }
-
-      $("clinics").appendChild(fragment);
-    }
+     
 
     // ======================================================
     // 渲染預報
