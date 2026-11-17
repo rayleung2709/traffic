@@ -798,7 +798,6 @@ main {
 
   <template id="cardTemplate">
     <article class="eta-card">
-      <p class="step" data-role="step"></p>
       <div class="card-line" data-role="line"></div>
       <h5 class="stop-name" data-role="title"></h5>
       <p class="direction" data-role="direction"></p>
@@ -1935,10 +1934,7 @@ async function fetchCTB(config, force) {
       view.title.id = `card-title-${serial}`;
       card.setAttribute("aria-labelledby", view.title.id);
 
-      text(view.step,
-        `${stepNumber === 1 ? "起點" : "轉車"} · 第 ${stepNumber} 段` +
-        (alternative ? " · 二選一" : "")
-      );
+
 
       text(view.title, config.title);
       text(view.direction, config.directionLabel);
@@ -2080,6 +2076,11 @@ function createCommute(clinic, direction) {
 
           const firstConfig = LEGS.get(stage[0]);
 
+const headingText = alternative
+            ? firstConfig.title
+            : stageIndex === 0
+              ? "上車"
+              : "轉車";
 
           heading.appendChild(
             makeElement("span", "", headingText)
