@@ -2525,7 +2525,7 @@ const list = makeElement("div", "legs");
       } else if (first) {
         const seconds = secondsTo(first.time, now);
         mainText = seconds === 0 ? "到站" : countdown(seconds);
-        soon = seconds <= 60 && !stale;
+        soon = seconds <= 120 && !stale;
       }
 
       const status = [];
