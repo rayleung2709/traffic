@@ -442,6 +442,673 @@
         transition: none !important;
       }
     }
+/* ===== UI refinement ===== */
+
+:root {
+  --panel: #12161c;
+  --control: #1b212a;
+  --border: #29313d;
+  --muted: #c0c8d5;
+  --subtle: #a0abbb;
+  --width: 760px;
+}
+
+body {
+  line-height: 1.5;
+}
+
+.topbar {
+  background: #000;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.topbar-inner {
+  padding: 8px 16px 12px;
+}
+
+.brand-row {
+  min-height: 44px;
+}
+
+h1 {
+  min-width: 0;
+  font-size: 17px;
+  letter-spacing: -.3px;
+}
+
+.refresh-info {
+  gap: 2px;
+}
+
+#nextRefresh {
+  min-width: 64px;
+  text-align: right;
+  font-size: 11px;
+}
+
+/* 診所掣維持單行；手機可以左右滑動 */
+.filters {
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 6px;
+  padding: 3px 2px 7px;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.filter {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 9px 15px;
+  background: #10141a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.filter[aria-pressed="true"] {
+  border-color: #268bff;
+  background: #123355;
+  color: #fff;
+}
+
+.direction-switch {
+  margin-top: 5px;
+  border: 1px solid #252c37;
+  background: #11161d;
+}
+
+.direction-button {
+  font-size: 14px;
+}
+
+.direction-button[aria-pressed="true"] {
+  background: #096bc9;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+}
+
+main {
+  padding-inline: 16px;
+}
+
+.clinic {
+  padding-top: 24px;
+}
+
+.clinic + .clinic {
+  margin-top: 28px;
+}
+
+.clinic-title {
+  margin-bottom: 14px;
+  font-size: 23px;
+  letter-spacing: -.4px;
+}
+
+.route-switch {
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 3px 2px 7px;
+  overscroll-behavior-x: contain;
+}
+
+.route-button {
+  min-height: 44px;
+  background: #10141a;
+  font-size: 13px;
+}
+
+.route-button[aria-pressed="true"] {
+  border-color: #268bff;
+  background: #123355;
+}
+
+/* 路線概覽：描述實際上下車位置，唔係時間估算 */
+.journey-summary {
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0c1016;
+}
+
+.journey-summary-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.journey-summary-flow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.legs {
+  gap: 14px;
+}
+
+.stage-block {
+  border-radius: 16px;
+}
+
+.stage-heading {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #171d25;
+  font-size: 15px;
+}
+
+.stage-number {
+  flex-basis: 26px;
+  width: 26px;
+  height: 26px;
+  background: #263547;
+  color: #e2edfb;
+}
+
+.stage-action {
+  color: var(--subtle);
+}
+
+.eta-card {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 156px);
+  align-items: start;
+  gap: 12px 16px;
+  padding: 17px 15px;
+}
+
+.card-line {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.card-line::before {
+  flex-basis: 9px;
+  width: 9px;
+  height: 9px;
+}
+
+.direction {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.platform {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.eta-stack {
+  min-width: 0;
+}
+
+.eta-caption {
+  margin: 0 0 3px;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.countdown {
+  min-height: 43px;
+  font-size: 36px;
+  line-height: 1.2;
+  letter-spacing: -1.2px;
+}
+
+.countdown.is-message {
+  min-height: 43px;
+  max-width: none;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.following {
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.following span {
+  max-width: 100%;
+}
+
+.status {
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* 舊資料保留可讀性，唔好淡到睇唔清 */
+.eta-card.is-stale .eta-stack {
+  opacity: .7;
+}
+
+.picker {
+  padding-top: 12px;
+}
+
+.picker label {
+  font-size: 13px;
+}
+
+.picker select {
+  min-height: 46px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+@media (hover: hover) {
+  .filter:hover,
+  .route-button:hover {
+    border-color: #54708f;
+  }
+
+  #refreshButton:hover {
+    background: #1a222c;
+  }
+}
+
+@media (max-width: 540px) {
+  .topbar-inner {
+    padding-inline: 12px;
+  }
+
+  main {
+    padding-inline: 12px;
+  }
+
+  h1 {
+    font-size: 15px;
+  }
+
+  .clinic-title {
+    font-size: 21px;
+  }
+
+  .eta-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 124px);
+    gap: 10px;
+    padding: 15px 13px;
+  }
+
+  .countdown {
+    min-height: 38px;
+    font-size: 32px;
+  }
+
+  .countdown.is-message {
+    min-height: 38px;
+    max-width: none;
+    font-size: 13px;
+  }
+
+  .following {
+    font-size: 11px;
+  }
+
+  .following span {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .eta-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 106px);
+  }
+
+  .card-line {
+    font-size: 14px;
+  }
+
+  .direction {
+    font-size: 13px;
+  }
+
+  .countdown {
+    font-size: 29px;
+  }
+}
+/* ===== 全部班次及 UI refinement ===== */
+
+.filters {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 3px 2px 7px;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.filter {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.route-switch {
+  overscroll-behavior-x: contain;
+}
+
+.eta-card {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 160px);
+  align-items: start;
+}
+
+.eta-stack {
+  min-width: 0;
+}
+
+.eta-caption {
+  margin: 0 0 4px;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.countdown.is-message {
+  max-width: none;
+}
+
+.following {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.following-row {
+  padding: 7px 0;
+}
+
+.following-row + .following-row {
+  border-top: 1px solid rgb(255 255 255 / 6%);
+}
+
+.following-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+.following-label {
+  color: var(--subtle);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.following-value {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.following-detail {
+  margin: 3px 0 0;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.following span {
+  max-width: none;
+}
+
+.eta-card.is-stale .eta-stack {
+  opacity: .7;
+}
+
+.status {
+  font-size: 12px;
+}
+
+@media (max-width: 540px) {
+  .eta-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 124px);
+  }
+
+  .eta-stack {
+    min-width: 0;
+  }
+
+  .following-label {
+    font-size: 10px;
+  }
+
+  .following-value {
+    font-size: 14px;
+  }
+
+  .following-detail {
+    font-size: 10px;
+  }
+
+  .countdown.is-message {
+    max-width: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .eta-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 108px);
+    column-gap: 8px;
+  }
+
+  .card-line {
+    font-size: 14px;
+  }
+
+  .following-main {
+    gap: 5px;
+  }
+}
+/* ===== Compact UI：放在所有 CSS 最後 ===== */
+
+/* 診所選擇不換行 */
+.filters {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 2px 0 4px;
+}
+
+.filter {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.topbar-inner {
+  padding-bottom: 8px;
+}
+
+.direction-switch {
+  margin-top: 4px;
+  padding: 3px;
+}
+
+.clinic {
+  padding-top: 14px;
+}
+
+.clinic + .clinic {
+  margin-top: 16px;
+}
+
+.clinic-title {
+  margin-bottom: 9px;
+  font-size: 20px;
+}
+
+.route-switch {
+  margin-bottom: 9px;
+  gap: 6px;
+}
+
+.route-button {
+  padding: 7px 10px;
+}
+
+.legs {
+  gap: 8px;
+}
+
+.stage-block {
+  border-radius: 12px;
+}
+
+.stage-heading {
+  gap: 7px;
+  padding: 8px 11px;
+  font-size: 14px;
+}
+
+.stage-number {
+  flex: 0 0 21px;
+  width: 21px;
+  height: 21px;
+  font-size: 11px;
+}
+
+.eta-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 10px;
+  padding: 10px 11px;
+}
+
+.card-line {
+  gap: 6px;
+  font-size: 15px;
+}
+
+/* 不顯示往羅湖／落馬洲／大埔墟等終點 */
+.direction,
+.eta-caption,
+.following-label,
+.following-detail {
+  display: none !important;
+}
+
+.platform {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.eta-stack {
+  min-width: 0;
+}
+
+.countdown {
+  min-height: 0;
+  font-size: 29px;
+  line-height: 1.1;
+}
+
+.countdown.is-message {
+  min-height: 0;
+  max-width: 110px;
+  font-size: 12px;
+}
+
+/* 所有後續班次排成同一行 */
+.following {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 3px 0;
+  max-width: 180px;
+  margin-top: 5px;
+  border: 0;
+}
+
+.following-row,
+.following-row + .following-row {
+  padding: 0;
+  border: 0;
+}
+
+.following-row + .following-row::before {
+  content: "·";
+  margin: 0 5px;
+  color: var(--subtle);
+}
+
+.following-row {
+  display: flex;
+  align-items: baseline;
+}
+
+.following-main {
+  display: block;
+}
+
+.following-value {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.status {
+  margin: 0;
+  padding-top: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.picker {
+  padding-top: 6px;
+}
+
+.picker label {
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+@media (max-width: 360px) {
+  .eta-card {
+    gap: 5px 7px;
+    padding: 9px;
+  }
+
+  .card-line {
+    font-size: 14px;
+  }
+
+  .countdown {
+    font-size: 27px;
+  }
+
+  .following {
+    max-width: 145px;
+  }
+
+  .following-value {
+    font-size: 11px;
+  }
+
+  .following-row + .following-row::before {
+    margin: 0 4px;
+  }
+}
   </style>
 </head>
 
@@ -1764,6 +2431,72 @@ const list = makeElement("div", "legs");
         : timeText;
     }
 
+// 後續班次全部顯示，不設定 3 班或 4 班的介面上限。
+    // 已建立的行會重用；每秒只更新文字，不重建整個列表。
+    function renderFollowing(view, arrivals, state, now) {
+      if (!view.followingRows) {
+        view.followingRows = [];
+      }
+
+      const count = state.needsSelection
+        ? 0
+        : Math.max(0, arrivals.length - 1);
+
+      view.following.hidden = count === 0;
+
+      for (let index = 0; index < count; index++) {
+        let row = view.followingRows[index];
+
+        if (!row) {
+          const element = makeElement("div", "following-row");
+          const main = makeElement("div", "following-main");
+          const label = makeElement("span", "following-label");
+          const value = makeElement("span", "following-value");
+          const detail = makeElement("p", "following-detail");
+
+          main.append(label, value);
+          element.append(main, detail);
+          view.following.appendChild(element);
+
+          row = { element, label, value, detail };
+          view.followingRows.push(row);
+        }
+
+        const arrival = arrivals[index + 1];
+        const first = arrivals[0];
+
+        row.element.hidden = false;
+
+        text(row.label, `第 ${index + 2} 班`);
+        text(row.value, arrivalLabel(arrival, now, false));
+
+        // 終點或月台與第一班不同時，逐班標明。
+        // 避免東鐵／將軍澳綫等不同終點班次混淆。
+        const detailText = messages([
+          arrival.destination &&
+          arrival.destination !== first?.destination
+            ? `往 ${arrival.destination}`
+            : "",
+
+          arrival.platform &&
+          arrival.platform !== first?.platform
+            ? `${arrival.platform} 月台`
+            : ""
+        ]);
+
+        optional(row.detail, detailText);
+      }
+
+      // API 回傳班次減少時，隱藏多出的舊行。
+      for (
+        let index = count;
+        index < view.followingRows.length;
+        index++
+      ) {
+        view.followingRows[index].element.hidden = true;
+      }
+    }
+
     function renderLeg(id, now = Date.now()) {
       const config = LEGS.get(id);
       const state = states.get(id);
@@ -1772,13 +2505,12 @@ const list = makeElement("div", "legs");
       const reasons = staleReasons(state, now);
       const stale = reasons.length > 0;
 
+      // 保留所有仍然有效的班次，不 slice(0, 3)。
       const arrivals = state.arrivals.filter(arrival =>
         arrival.time >= now - SETTINGS.arrivalGraceMs
       );
 
       const first = arrivals[0];
-      const second = arrivals[1];
-      const third = arrivals[2];
 
       const exhausted =
         state.arrivals.length > 0 && arrivals.length === 0;
@@ -1809,7 +2541,9 @@ const list = makeElement("div", "legs");
           status.push(app.refreshing ? "更新中…" : "等候更新");
         } else if (!first && !state.error) {
           status.push(
-            exhausted ? "上次班次已過 · 等候新預報" : "暫無到站預報"
+            exhausted
+              ? "上次班次已過 · 等候新預報"
+              : "暫無到站預報"
           );
         }
 
@@ -1827,13 +2561,18 @@ const list = makeElement("div", "legs");
         text(
           view.direction,
           state.direction ||
-            (destination ? `往 ${destination}` : config.directionLabel)
+            (destination
+              ? `往 ${destination}`
+              : config.directionLabel)
         );
 
         const platformText = messages([
           first?.platform ? `${first.platform} 月台` : "",
+
           state.stopTitle && state.stopTitle !== config.title
-            ? `上車：${state.stopTitle}` : "",
+            ? `上車：${state.stopTitle}`
+            : "",
+
           `${view.alight}落車`
         ]);
 
@@ -1847,35 +2586,12 @@ const list = makeElement("div", "legs");
           "is-stale",
           stale && state.receivedAt !== null
         );
+
         view.card.classList.toggle("has-warning", hasWarning);
 
-        const showFollowing = Boolean(
-          second && !state.needsSelection
-        );
+        renderFollowing(view, arrivals, state, now);
 
-        view.following.hidden = !showFollowing;
-
-        text(
-          view.second,
-          second ? arrivalLabel(
-            second, now,
-            Boolean(second.destination &&
-              second.destination !== first?.destination)
-          ) : ""
-        );
-
-        text(
-          view.third,
-          third ? arrivalLabel(
-            third, now,
-            Boolean(third.destination &&
-              third.destination !== first?.destination)
-          ) : ""
-        );
-
-        view.third.hidden = !third;
         optional(view.status, statusText);
-
         renderPicker(view, state);
       }
     }
