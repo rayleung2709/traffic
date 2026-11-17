@@ -503,12 +503,7 @@ main {
   margin-top: 0;
 }
 
-.commute-summary {
-  margin: 0 0 12px;
-  color: var(--subtle);
-  font-size: 13px;
-  line-height: 1.6;
-}
+
 
 .route-switch {
   display: flex;
@@ -1999,15 +1994,6 @@ function createCommute(clinic, direction) {
 
       section.dataset.direction = direction;
 
-      section.appendChild(
-        makeElement(
-          "p",
-          "commute-summary",
-          out
-            ? `鑽石山 → ${clinic.name}`
-            : `${clinic.name} → 鑽石山`
-        )
-      );
 
       const routes = clinic[direction];
       const switcher = makeElement("nav", "route-switch");
@@ -2094,11 +2080,6 @@ function createCommute(clinic, direction) {
 
           const firstConfig = LEGS.get(stage[0]);
 
-          const headingText = alternative
-            ? `${firstConfig.title} · 二選一`
-            : stageIndex === 0
-              ? "上車"
-              : "轉車";
 
           heading.appendChild(
             makeElement("span", "", headingText)
