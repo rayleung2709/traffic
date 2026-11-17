@@ -858,6 +858,7 @@ dialog::backdrop { background: rgba(5,10,18,.78); }
     <button class="type-btn active" data-type="kmb-stop" aria-pressed="true">九巴車站</button>
     <button class="type-btn" data-type="kmb-route" aria-pressed="false">九巴路線</button>
     <button class="type-btn" data-type="gmb-route" aria-pressed="false">小巴路線</button>
+    <button class="type-btn" data-type="mtr-station" aria-pressed="false">港鐵</button>
   </div>
 
   <div id="form-kmb-stop" class="fav-form">
@@ -879,6 +880,22 @@ dialog::backdrop { background: rgba(5,10,18,.78); }
     <div id="favGMBPreview"></div>
   </div>
 
+
+<div id="form-mtr-station" class="fav-form" hidden>
+  <div class="form-row">
+    <div class="field">
+      <label for="favMtrLine">港鐵路線</label>
+      <select id="favMtrLine"></select>
+    </div>
+    <div class="field">
+      <label for="favMtrSta">車站</label>
+      <select id="favMtrSta"></select>
+    </div>
+  </div>
+  <p class="muted">儲存此路線及車站，常用卡片會顯示各方向列車。</p>
+</div>
+  
+  
   <div id="favSelection" class="modal-selection" role="status">尚未選擇項目</div>
 
   <label class="field-label" for="favCustomName">幫呢個站改個名</label>
@@ -1782,7 +1799,9 @@ function makeId() {
 
 function normalizeFavourite(raw) {
   if (!raw || typeof raw !== "object") return null;
-  if (!["kmb-stop", "kmb-route", "gmb-route"].includes(raw.type)) return null;
+  if (!["kmb-stop", "kmb-route", "gmb-route", "mtr-station"].includes(raw.type)) {
+  return null;
+}
 
   const fav = {
     ...raw,
@@ -1796,6 +1815,10 @@ function normalizeFavourite(raw) {
     return null;
   }
 
+  if (fav.type === "mtr-station") {
+  if (!MTR_LINES[fav.line]?.stations[fav.sta]) return null;
+  }
+  
   if (fav.type === "gmb-route") {
     if (fav.routeId == null || fav.routeSeq == null || fav.stopSeq == null) return null;
     // 更舊版本可能把上車站名放入 dest；避免誤當目的地。
@@ -1871,15 +1894,22 @@ function buildDashboard() {
   const fragment = document.createDocumentFragment();
   favourites.forEach(fav => {
     const isGMB = fav.type === "gmb-route";
+    const isMTR = fav.type === "mtr-station";
     const card = node("article", "fav-card");
-    card.style.setProperty("--company", isGMB ? "#7de0b4" : "#ff8791");
+    card.style.setProperty(
+  "--company",
+  isMTR ? "#78b5ff" : isGMB ? "#7de0b4" : "#ff8791"
+);
 
     const heading = node("div", "fav-heading");
     const title = node("div");
     title.append(
       node("h3", "", fav.name),
-      node("span", "company-label",
-        isGMB ? "綠色專線小巴" : fav.type === "kmb-stop" ? "九巴 · 車站" : "九巴 · 路線")
+     node("span", "company-label",
+  isMTR ? "港鐵 · " + MTR_LINES[fav.line].name
+    : isGMB ? "綠色專線小巴"
+    : fav.type === "kmb-stop" ? "九巴 · 車站"
+    : "九巴 · 路線")
     );
 
     const remove = node("button", "remove-btn", "×");
@@ -1895,7 +1925,11 @@ function buildDashboard() {
     skeleton(body);
 
     const footer = node("div", "fav-footer");
-    const location = node("span", "", fav.stopName || (fav.stopId ? "Stop ID · " + fav.stopId : "已儲存上車站"));
+    const location = node("span", "",
+  isMTR
+    ? MTR_LINES[fav.line].stations[fav.sta]
+    : fav.stopName || (fav.stopId ? "Stop ID · " + fav.stopId : "已儲存上車站")
+);
     const status = node("span", "", "等待更新");
     footer.append(location, status);
 
@@ -1914,6 +1948,42 @@ function favouritesChanged() {
 }
 
 async function favouriteRows(fav) {
+
+
+
+
+  if (fav.type === "mtr-station") {
+  const json = await fetchJSON(
+    `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${enc(fav.line)}&sta=${enc(fav.sta)}&lang=TC`
+  );
+
+  if (Number(json.status) === 0) {
+    throw new Error(json.message || "港鐵暫未提供班次資料");
+  }
+
+  const data = json.data?.[`${fav.line}-${fav.sta}`];
+  if (!data) throw new Error("此站暫未提供班次資料");
+
+  return ["UP", "DOWN"].flatMap(direction => {
+    const trains = Array.isArray(data[direction]) ? data[direction] : [];
+
+    return trains.map(train => ({
+      route: MTR_LINES[fav.line].name,
+      dest: stationName(train.dest),
+      eta: train.time,
+      detail: [
+        direction === "UP" ? "上行" : "下行",
+        "月台 " + (train.plat || "—")
+      ].join(" · "),
+      remark: json.isdelay === "Y"
+        ? "可能有車務延誤，請留意港鐵公布。"
+        : "",
+      group: [direction, train.dest, train.plat].join("|")
+    }));
+  });
+}
+  
+  
   if (fav.type === "kmb-stop") {
     const json = await fetchJSON(`${KMB_BASE}/stop-eta/${enc(fav.stopId)}`);
     return busRows(json.data);
@@ -2015,7 +2085,48 @@ function invalidateModalTasks() {
   debouncedFavStopSearch.cancel();
   debouncedFavRouteSearch.cancel();
 }
+function chooseMTRFavourite() {
+  if (!modal.open || favType !== "mtr-station") return;
 
+  const line = $("favMtrLine").value;
+  const sta = $("favMtrSta").value;
+  if (!MTR_LINES[line]?.stations[sta]) return;
+
+  chooseFavourite({
+    type: "mtr-station",
+    line,
+    sta,
+    name: MTR_LINES[line].stations[sta] + " · " + MTR_LINES[line].name
+  });
+}
+
+function populateFavouriteMTRStations() {
+  const line = $("favMtrLine").value;
+
+  $("favMtrSta").replaceChildren(
+    ...Object.entries(MTR_LINES[line].stations)
+      .map(([code, name]) => opt(code, name))
+  );
+
+  chooseMTRFavourite();
+}
+
+function prepareFavouriteMTR() {
+  $("favMtrLine").replaceChildren(
+    ...Object.entries(MTR_LINES)
+      .map(([code, line]) => opt(code, line.name))
+  );
+
+  // 預設帶入港鐵分頁目前選擇
+  $("favMtrLine").value = $("mtrLine").value;
+  populateFavouriteMTRStations();
+
+  $("favMtrSta").value = $("mtrSta").value;
+  chooseMTRFavourite();
+}
+
+$("favMtrLine").addEventListener("change", populateFavouriteMTRStations);
+$("favMtrSta").addEventListener("change", chooseMTRFavourite);
 function setFavouriteType(type) {
   invalidateModalTasks();
   clearPendingFavourite();
@@ -2036,6 +2147,7 @@ function setFavouriteType(type) {
   if (type === "kmb-stop" && $("favStopSearch").value.trim()) searchFavouriteStop();
   if (type === "kmb-route" && $("favRouteInput").value.trim()) searchFavouriteRoute();
   if (type === "gmb-route") prefillGMBFavourite();
+  if (type === "mtr-station") prepareFavouriteMTR();
 }
 
 function openFavouriteModal(type = favType) {
@@ -2194,6 +2306,9 @@ function prefillGMBFavourite() {
 
 function sameFavourite(a, b) {
   if (a.type !== b.type) return false;
+  if (a.type === "mtr-station") {
+  return a.line === b.line && a.sta === b.sta;
+}
   if (a.type === "kmb-stop") return String(a.stopId) === String(b.stopId);
   const fields = a.type === "kmb-route"
     ? ["stopId", "route", "dir", "serviceType", "stopSeq"]
