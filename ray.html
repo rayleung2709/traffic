@@ -1455,10 +1455,14 @@ async function fetchCTB(config, force) {
               throw new Error("小巴站序格式錯誤");
             }
 
-            return stops.filter(stop =>
+          return stops.filter(stop =>
               stop &&
               stop.stop_seq != null &&
-              clean(stop.name_tc).includes(config.stopMatch)
+              clean(stop.name_tc).includes(config.stopMatch) &&
+              (
+                config.id !== "gmb26-out" ||
+                Number(stop.stop_seq) === 1
+              )
             ).map(stop => {
               const origin = clean(direction.orig_tc);
               const destination = clean(direction.dest_tc);
