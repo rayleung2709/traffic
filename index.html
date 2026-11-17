@@ -1,0 +1,2319 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101722">
+<meta name="color-scheme" content="dark">
+<title>香港交通 · 即時到站</title>
+
+<style>
+:root {
+  --bg: #101722;
+  --surface: #182231;
+  --surface2: #202d3f;
+  --input: #111c2b;
+  --border: #2a394f;
+  --text: #eef3fc;
+  --muted: #94a6bf;
+  --accent: #78b5ff;
+  --green: #7de0b4;
+  --red: #ff8791;
+  --yellow: #ffd580;
+  --radius: 22px;
+  --shadow: 0 14px 40px rgba(0,0,0,.12);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(53,89,144,.15), transparent 45%),
+    var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select { font: inherit; }
+button {
+  border: 0;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+button:active:not(:disabled) { transform: scale(.98); }
+button:disabled { cursor: not-allowed; opacity: .45; }
+button:focus-visible, input:focus-visible, select:focus-visible,
+summary:focus-visible, a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+[hidden] { display: none !important; }
+a { color: var(--accent); }
+.shell { width: min(100% - 40px, 1000px); margin: auto; }
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 30px 0 22px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid #405d81;
+  border-radius: 15px;
+  background: #233a57;
+  font-size: 24px;
+}
+.brand h1 { margin: 0; font-size: 21px; letter-spacing: .04em; }
+.brand p { margin: 1px 0 0; color: var(--muted); font-size: 12px; }
+.header-clock { text-align: right; }
+.header-clock strong {
+  display: block;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .04em;
+}
+.header-clock span { color: var(--muted); font-size: 11px; }
+.navigation {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 28px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(24,34,49,.95);
+}
+.nav-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn.active { background: #294461; color: #d5e8ff; }
+.nav-icon { font-size: 19px; }
+main { min-height: 55vh; }
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--accent);
+  font-weight: 700;
+}
+h2 { margin: 0; font-size: 27px; letter-spacing: -.02em; }
+.subtitle { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.heading-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+.btn:hover { background: #2b3e57; }
+.btn-primary { background: #83baff; color: #10213b; }
+.btn-primary:hover { background: #a3ccff; }
+.btn-icon { width: 44px; padding: 0; font-size: 19px; }
+.btn-small { min-height: 36px; padding: 7px 12px; font-size: 12px; }
+.panel {
+  padding: 22px;
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 15px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #2c415d;
+  color: #bedaff;
+  font-size: 11px;
+}
+.form-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.field { flex: 1 1 170px; min-width: 0; }
+.field.wide { flex: 2 1 220px; }
+.field label, .field-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+input[type="text"], select {
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 1px solid #34465e;
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 14px;
+}
+input::placeholder { color: #71849e; }
+.auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 17px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.auto-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.muted { color: var(--muted); font-size: 12px; }
+.error { color: var(--red); }
+.status-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -5px 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--green);
+}
+.status-line .divider { color: #43566e; }
+.notice {
+  padding: 13px 16px;
+  margin-bottom: 18px;
+  border: 1px solid #726039;
+  border-radius: 14px;
+  color: #ffe0a3;
+  background: #302a20;
+  font-size: 13px;
+}
+.result-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #415877 transparent;
+}
+.search-results:not(:empty) { margin-top: 14px; }
+.stop-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 7px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.stop-btn::after { content: "›"; color: var(--muted); font-size: 22px; }
+.stop-btn:hover { background: #24364c; }
+.stop-btn.selected { border-color: var(--accent); background: #233c58; }
+.stop-btn.selected::after { content: "✓"; font-size: 16px; color: var(--accent); }
+.direct-input { margin-top: 16px; }
+details > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+  padding: 8px 0;
+}
+details[open] > summary { margin-bottom: 8px; }
+.empty-state {
+  display: grid;
+  place-items: center;
+  padding: 42px 18px;
+  border: 1px dashed #3c4f69;
+  border-radius: var(--radius);
+  background: rgba(24,34,49,.55);
+  text-align: center;
+}
+.empty-icon { margin-bottom: 14px; font-size: 34px; }
+.empty-state h3 { margin: 0 0 7px; font-size: 17px; }
+.empty-state p { margin: 0; color: var(--muted); font-size: 13px; }
+.empty-state .btn { margin-top: 20px; }
+.result-empty {
+  padding: 32px 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.result-empty p { margin: 0; }
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.fav-card {
+  position: relative;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.fav-card::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  left: -1px;
+  width: 3px;
+  height: 28px;
+  border-radius: 0 4px 4px 0;
+  background: var(--company, var(--accent));
+}
+.fav-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.fav-heading h3 { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.company-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.company-label::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--company, var(--accent));
+}
+.remove-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin: -5px -6px 0 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #8ca0b9;
+  font-size: 17px;
+}
+.remove-btn:hover { color: var(--red); background: #332b38; }
+.fav-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+.fav-footer span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fav-footer span:last-child { flex-shrink: 0; }
+.eta-stack { display: grid; gap: 10px; }
+.eta-block {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--input);
+}
+.eta-head { display: flex; align-items: flex-start; gap: 10px; }
+.route-badge {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 48px;
+  min-height: 34px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: #2b3f58;
+  color: #edf5ff;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -.02em;
+}
+.eta-info { min-width: 0; padding-top: 1px; }
+.eta-dest { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.eta-detail { color: var(--muted); font-size: 10px; margin-top: 3px; }
+.eta-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 17px;
+}
+.eta-caption { font-size: 12px; color: var(--muted); }
+.eta-time {
+  color: var(--green);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.045em;
+  white-space: nowrap;
+}
+.eta-time small { margin-left: 5px; font-size: 12px; letter-spacing: 0; font-weight: 500; }
+.eta-time.soon { color: var(--red); }
+.eta-time.warn { color: var(--yellow); }
+.eta-time.arriving { font-size: 23px; letter-spacing: -.02em; }
+.eta-later {
+  margin-top: 13px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+.eta-remark { margin-top: 9px; color: var(--yellow); font-size: 11px; }
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.direction-title {
+  margin: 18px 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.direction-title:first-child { margin-top: 0; }
+.selected-summary {
+  padding: 10px 13px;
+  margin: 13px 0 0;
+  border-radius: 12px;
+  background: #21364b;
+  color: #c5ddf7;
+  font-size: 12px;
+}
+.page-note { margin: 18px 0; color: var(--muted); font-size: 12px; }
+.footer {
+  padding: 36px 0 28px;
+  color: #7e91aa;
+  font-size: 11px;
+  line-height: 1.9;
+  text-align: center;
+}
+.footer p { margin: 0; }
+.footer a { color: #a0b7d4; }
+dialog {
+  width: min(94vw, 520px);
+  max-height: 88dvh;
+  padding: 24px;
+  overflow-y: auto;
+  border: 1px solid #40536f;
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 30px 100px rgba(0,0,0,.45);
+}
+dialog::backdrop { background: rgba(5,10,18,.78); }
+.modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.modal-heading h2 { font-size: 22px; }
+.modal-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 12px; }
+.type-switch {
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  margin-bottom: 20px;
+  border-radius: 13px;
+  background: var(--input);
+}
+.type-btn {
+  flex: 1;
+  min-height: 40px;
+  padding: 8px 4px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.type-btn.active { background: #2b4563; color: #e3efff; }
+.modal-results { max-height: 230px; margin-top: 12px; }
+.modal-selection {
+  margin: 18px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--muted);
+  font-size: 12px;
+}
+.modal-selection.ready { background: #1b3b35; color: #abe9ce; }
+.modal-actions { display: flex; gap: 9px; margin-top: 22px; }
+.modal-actions .btn { flex: 1; }
+.spin {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: 7px;
+  border: 2px solid #3b4f69;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  vertical-align: -3px;
+  animation: spin .75s linear infinite;
+}
+.skeleton { display: grid; gap: 10px; padding: 5px 0; }
+.skeleton span {
+  display: block;
+  height: 15px;
+  border-radius: 7px;
+  background: linear-gradient(90deg,#223148,#30435e,#223148);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeleton span:nth-child(1) { width: 65%; }
+.skeleton span:nth-child(2) { height: 55px; margin-top: 12px; }
+.skeleton span:nth-child(3) { width: 80%; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (max-width: 700px) {
+  .shell { width: calc(100% - 32px); }
+  body { padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)); }
+  .app-header { padding: 22px 0 24px; }
+  .brand-icon { width: 41px; height: 41px; border-radius: 13px; font-size: 22px; }
+  .brand h1 { font-size: 19px; }
+  .brand p { font-size: 10px; }
+  .header-clock strong { font-size: 19px; }
+  .navigation {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    gap: 3px;
+    border: 0;
+    border-top: 1px solid #33435a;
+    border-radius: 0;
+    background: rgba(18,27,40,.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .nav-btn {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 54px;
+    padding: 5px 2px;
+    border-radius: 12px;
+    font-size: 10px;
+  }
+  .nav-icon { font-size: 20px; line-height: 1.3; }
+  .nav-btn.active { background: #243d58; }
+  h2 { font-size: 24px; }
+  .subtitle { font-size: 12px; }
+  .page-heading { margin-bottom: 19px; }
+  .heading-actions .btn { padding-left: 12px; padding-right: 12px; font-size: 12px; }
+  .heading-actions .btn-icon { padding: 0; width: 40px; }
+  .panel { padding: 18px; border-radius: 19px; }
+  .dashboard-grid { grid-template-columns: 1fr; gap: 14px; }
+  .fav-card { padding: 19px; border-radius: 20px; }
+  .result-grid { grid-template-columns: 1fr; }
+  .eta-time { font-size: 40px; }
+  .form-row > .btn { min-height: 46px; }
+  .footer { padding: 25px 0 20px; }
+  dialog { padding: 20px; border-radius: 22px; }
+}
+@media (max-width: 370px) {
+  .shell { width: calc(100% - 24px); }
+  .brand { gap: 8px; }
+  .brand p { display: none; }
+  .heading-actions { gap: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+
+<body>
+<div class="shell">
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">🚦</div>
+      <div>
+        <h1>香港交通</h1>
+        <p>出門之前，一眼睇晒。</p>
+      </div>
+    </div>
+    <div class="header-clock">
+      <strong id="hkClock">--:--</strong>
+      <span id="hkDate">香港時間</span>
+    </div>
+  </header>
+
+  <nav class="navigation" aria-label="交通分類">
+    <button class="nav-btn active" data-tab="dashboard" aria-pressed="true">
+      <span class="nav-icon" aria-hidden="true">⭐</span><span>常用</span>
+    </button>
+    <button class="nav-btn" data-tab="mtr" aria-pressed="false">
+      <span class="nav-icon" aria-hidden="true">🚆</span><span>港鐵</span>
+    </button>
+    <button class="nav-btn" data-tab="kmb" aria-pressed="false">
+      <span class="nav-icon" aria-hidden="true">🚌</span><span>九巴</span>
+    </button>
+    <button class="nav-btn" data-tab="ctb" aria-pressed="false">
+      <span class="nav-icon" aria-hidden="true">🚍</span><span>城巴／NLB</span>
+    </button>
+    <button class="nav-btn" data-tab="gmb" aria-pressed="false">
+      <span class="nav-icon" aria-hidden="true">🚐</span><span>小巴</span>
+    </button>
+  </nav>
+
+  <div id="storageNotice" class="notice" role="status" hidden></div>
+
+  <main>
+    <!-- 常用 -->
+    <section id="tab-dashboard" aria-labelledby="dashboardTitle">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">YOUR DAILY COMMUTE</p>
+          <h2 id="dashboardTitle">常用交通</h2>
+          <p class="subtitle">下一班幾時到？喺呢度睇。</p>
+        </div>
+        <div class="heading-actions">
+          <button id="dashRefresh" class="btn btn-icon" aria-label="更新常用項目">↻</button>
+          <button id="addFav" class="btn btn-primary">＋ 新增</button>
+        </div>
+      </div>
+      <div class="status-line">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="dashUpdated">準備就緒</span>
+        <span class="divider">·</span>
+        <span>每 30 秒更新</span>
+      </div>
+      <div id="dashList" class="dashboard-grid"></div>
+      <p class="page-note">切換分頁或離開瀏覽器畫面後，自動更新會暫停。</p>
+    </section>
+
+    <!-- 港鐵 -->
+    <section id="tab-mtr" aria-labelledby="mtrTitle" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">MTR LIVE SCHEDULE</p>
+          <h2 id="mtrTitle">港鐵到站</h2>
+          <p class="subtitle">揀好車站，睇下一班列車。</p>
+        </div>
+      </div>
+      <div class="panel">
+        <p class="panel-title"><span class="step">1</span> 選擇路線及車站</p>
+        <div class="form-row">
+          <div class="field">
+            <label for="mtrLine">路線</label>
+            <select id="mtrLine"></select>
+          </div>
+          <div class="field">
+            <label for="mtrSta">車站</label>
+            <select id="mtrSta"></select>
+          </div>
+          <button id="mtrQuery" class="btn btn-primary">查詢到站</button>
+        </div>
+        <div class="auto-row">
+          <label class="auto-label"><input type="checkbox" id="mtrAuto"> 每 30 秒自動更新</label>
+          <span id="mtrUpdated" class="muted"></span>
+        </div>
+      </div>
+      <div id="mtrResult" class="panel"></div>
+    </section>
+
+    <!-- 九巴 -->
+    <section id="tab-kmb" aria-labelledby="kmbTitle" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">KMB LIVE ARRIVALS</p>
+          <h2 id="kmbTitle">九巴到站</h2>
+          <p class="subtitle">搜尋上車站，睇各條路線下一班。</p>
+        </div>
+      </div>
+      <div class="panel">
+        <p class="panel-title"><span class="step">1</span> 搜尋上車站</p>
+        <div class="form-row">
+          <div class="field wide">
+            <label for="kmbSearch">車站名稱</label>
+            <input type="text" id="kmbSearch" placeholder="例如：旺角、彩虹" autocomplete="off">
+          </div>
+          <button id="kmbSearchBtn" class="btn btn-primary">搜尋</button>
+        </div>
+        <div id="kmbSearchResult" class="result-scroll search-results"></div>
+
+        <details class="direct-input">
+          <summary>已有 Stop ID？直接輸入</summary>
+          <div class="form-row">
+            <div class="field">
+              <label for="kmbStopId">九巴 Stop ID</label>
+              <input type="text" id="kmbStopId" placeholder="輸入車站 ID" autocomplete="off">
+            </div>
+            <button id="kmbQuery" class="btn">查詢</button>
+          </div>
+        </details>
+        <div class="auto-row">
+          <label class="auto-label"><input type="checkbox" id="kmbAuto"> 每 30 秒自動更新</label>
+          <span id="kmbUpdated" class="muted"></span>
+        </div>
+      </div>
+      <div id="kmbResult" class="panel"></div>
+    </section>
+
+    <!-- 城巴／NLB -->
+    <section id="tab-ctb" aria-labelledby="ctbTitle" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">CITYBUS & NLB</p>
+          <h2 id="ctbTitle">巴士到站</h2>
+          <p class="subtitle">城巴路線搜尋／NLB 車站查詢。</p>
+        </div>
+      </div>
+      <div class="panel">
+        <p class="panel-title"><span class="step">1</span> 選擇公司及路線</p>
+        <div class="form-row">
+          <div class="field">
+            <label for="ctbCo">巴士公司</label>
+            <select id="ctbCo">
+              <option value="CTB">城巴 Citybus</option>
+              <option value="NLB">新大嶼山巴士 NLB</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ctbRoute">城巴路線</label>
+            <input type="text" id="ctbRoute" placeholder="例如：2、969" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="ctbDir">方向</label>
+            <select id="ctbDir">
+              <option value="outbound">去程</option>
+              <option value="inbound">回程</option>
+            </select>
+          </div>
+          <button id="ctbSearchBtn" class="btn btn-primary">搜尋站點</button>
+        </div>
+        <p class="muted">路線搜尋只支援城巴；NLB 請直接輸入其 Stop ID。</p>
+        <div id="ctbSearchResult" class="result-scroll search-results"></div>
+        <details id="ctbDirect" class="direct-input">
+          <summary>直接輸入 Stop ID</summary>
+          <div class="form-row">
+            <div class="field">
+              <label for="ctbStopId">所選公司的 Stop ID</label>
+              <input type="text" id="ctbStopId" placeholder="輸入車站 ID" autocomplete="off">
+            </div>
+            <button id="ctbQuery" class="btn">查詢</button>
+          </div>
+        </details>
+        <div class="auto-row">
+          <label class="auto-label"><input type="checkbox" id="ctbAuto"> 每 30 秒自動更新</label>
+          <span id="ctbUpdated" class="muted"></span>
+        </div>
+      </div>
+      <div id="ctbResult" class="panel"></div>
+    </section>
+
+    <!-- 小巴 -->
+    <section id="tab-gmb" aria-labelledby="gmbTitle" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">GREEN MINIBUS</p>
+          <h2 id="gmbTitle">小巴到站</h2>
+          <p class="subtitle">選擇路線、方向，再點選上車站。</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="panel-title"><span class="step">1</span> 選擇地區</p>
+        <div class="form-row">
+          <div class="field">
+            <label for="gmbRegion">地區</label>
+            <select id="gmbRegion">
+              <option value="HKI">香港島</option>
+              <option value="KLN">九龍</option>
+              <option value="NT">新界</option>
+            </select>
+          </div>
+          <button id="gmbRoutesBtn" class="btn btn-primary">載入路線</button>
+        </div>
+
+        <div id="gmbRouteStep" hidden style="margin-top:22px">
+          <p class="panel-title"><span class="step">2</span> 選擇路線</p>
+          <div class="form-row">
+            <div class="field">
+              <label for="gmbRoute">路線號</label>
+              <select id="gmbRoute" disabled>
+                <option value="">請先載入路線</option>
+              </select>
+            </div>
+            <button id="gmbDirectionsBtn" class="btn" disabled>選路線</button>
+          </div>
+        </div>
+
+        <div id="gmbDirectionStep" hidden style="margin-top:22px">
+          <p class="panel-title"><span class="step">3</span> 選擇方向</p>
+          <div class="form-row">
+            <div class="field wide">
+              <label for="gmbDir">行車方向</label>
+              <select id="gmbDir" disabled>
+                <option value="">請先選路線</option>
+              </select>
+            </div>
+            <button id="gmbStopsBtn" class="btn" disabled>載入站點</button>
+          </div>
+        </div>
+
+        <div id="gmbStopResult" class="result-scroll search-results"></div>
+        <p id="gmbSelected" class="selected-summary" hidden></p>
+        <div class="auto-row">
+          <label class="auto-label"><input type="checkbox" id="gmbAuto"> 每 30 秒自動更新</label>
+          <span id="gmbUpdated" class="muted"></span>
+        </div>
+      </div>
+      <div id="gmbResult" class="panel"></div>
+      <button id="gmbAddCurrent" class="btn" hidden>⭐ 加入常用</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>即時資料由營運商提供 · 到站時間只供參考</p>
+    <p>
+      <a href="https://data.gov.hk" target="_blank" rel="noopener noreferrer">data.gov.hk</a>
+      · MTR · KMB · Citybus · GMB
+    </p>
+  </footer>
+</div>
+
+<dialog id="favModal" aria-labelledby="favTitle">
+  <div class="modal-heading">
+    <h2 id="favTitle">新增常用</h2>
+    <button id="closeFav" class="btn btn-icon" aria-label="關閉">×</button>
+  </div>
+  <p class="modal-subtitle">儲存你每日搭開嘅車，下次一開即睇。</p>
+
+  <div class="type-switch">
+    <button class="type-btn active" data-type="kmb-stop" aria-pressed="true">九巴車站</button>
+    <button class="type-btn" data-type="kmb-route" aria-pressed="false">九巴路線</button>
+    <button class="type-btn" data-type="gmb-route" aria-pressed="false">小巴路線</button>
+  </div>
+
+  <div id="form-kmb-stop" class="fav-form">
+    <label class="field-label" for="favStopSearch">搜尋車站</label>
+    <input type="text" id="favStopSearch" placeholder="例如：彩虹、旺角" autocomplete="off">
+    <div id="favStopResults" class="result-scroll modal-results"></div>
+  </div>
+
+  <div id="form-kmb-route" class="fav-form" hidden>
+    <label class="field-label" for="favRouteInput">路線號</label>
+    <input type="text" id="favRouteInput" placeholder="例如：1A、 215X" autocomplete="off">
+    <div id="favRouteDirResults" class="result-scroll modal-results"></div>
+    <div id="favRouteStopResults" class="result-scroll modal-results"></div>
+  </div>
+
+  <div id="form-gmb-route" class="fav-form" hidden>
+    <p class="muted">先喺小巴分頁選好路線、方向及上車站，再帶入。</p>
+    <button id="prefillGMB" class="btn">帶入目前小巴選擇</button>
+    <div id="favGMBPreview"></div>
+  </div>
+
+  <div id="favSelection" class="modal-selection" role="status">尚未選擇項目</div>
+
+  <label class="field-label" for="favCustomName">幫呢個站改個名</label>
+  <input type="text" id="favCustomName" maxlength="100" placeholder="例如：屋企樓下、返工站">
+
+  <div class="modal-actions">
+    <button id="cancelFav" class="btn">取消</button>
+    <button id="confirmFav" class="btn btn-primary" disabled>加入常用</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+
+/* ---------- 共用工具 ---------- */
+const $ = id => document.getElementById(id);
+const enc = value => encodeURIComponent(String(value));
+
+function node(tag, className, text) {
+  const n = document.createElement(tag);
+  if (className) n.className = className;
+  if (text !== undefined && text !== null) n.textContent = String(text);
+  return n;
+}
+
+function message(box, text, error = false) {
+  box.replaceChildren(node("p", error ? "muted error" : "muted", text));
+}
+
+function resultMessage(box, text, error = false) {
+  const wrap = node("div", "result-empty");
+  wrap.append(node("p", error ? "error" : "", text));
+  box.replaceChildren(wrap);
+}
+
+function loading(box) {
+  const p = node("p", "muted");
+  p.append(node("span", "spin"), document.createTextNode("正在讀取即時資料…"));
+  box.replaceChildren(p);
+}
+
+function skeleton(box) {
+  const wrap = node("div", "skeleton");
+  wrap.setAttribute("aria-label", "載入中");
+  for (let i = 0; i < 3; i++) wrap.append(node("span"));
+  box.replaceChildren(wrap);
+}
+
+function opt(value, text) {
+  const n = node("option", "", text);
+  n.value = String(value);
+  return n;
+}
+
+function resetSelect(id, text) {
+  $(id).replaceChildren(opt("", text));
+  $(id).disabled = true;
+}
+
+function stopButton(box, text, callback) {
+  const button = node("button", "stop-btn");
+  button.type = "button";
+  button.append(node("span", "", text));
+  button.addEventListener("click", () => {
+    box.querySelectorAll(".selected").forEach(n => n.classList.remove("selected"));
+    button.classList.add("selected");
+    callback();
+  });
+  box.append(button);
+}
+
+function hkTime() {
+  return new Date().toLocaleTimeString("zh-HK", {
+    timeZone: "Asia/Hong_Kong", hour12: false,
+    hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+}
+
+function updated(id) {
+  $(id).textContent = "更新於 " + hkTime();
+}
+
+function updateClock() {
+  const now = new Date();
+  $("hkClock").textContent = now.toLocaleTimeString("zh-HK", {
+    timeZone: "Asia/Hong_Kong", hour12: false,
+    hour: "2-digit", minute: "2-digit"
+  });
+  $("hkDate").textContent = now.toLocaleDateString("zh-HK", {
+    timeZone: "Asia/Hong_Kong",
+    month: "short", day: "numeric", weekday: "short"
+  });
+}
+
+function debounce(fn, delay = 350) {
+  let timer;
+  const wrapped = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+  wrapped.cancel = () => clearTimeout(timer);
+  return wrapped;
+}
+
+async function fetchJSON(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal, cache: "no-store"
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    return await response.json();
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("請求逾時，請稍後再試");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* 舊請求不能覆蓋新選擇 */
+const versions = Object.create(null);
+const pendingTasks = new Map();
+
+function invalidate(key) {
+  versions[key] = (versions[key] || 0) + 1;
+}
+
+async function task(key, box, work, showLoading = true) {
+  const version = (versions[key] || 0) + 1;
+  versions[key] = version;
+  pendingTasks.set(key, version);
+  const current = () => versions[key] === version;
+
+  if (showLoading) loading(box);
+  try {
+    await work(current);
+  } catch (error) {
+    if (current()) resultMessage(box, "讀取失敗：" + error.message, true);
+    console.error(key, error);
+  } finally {
+    if (pendingTasks.get(key) === version) pendingTasks.delete(key);
+  }
+}
+
+async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return results;
+}
+
+/* ---------- 本機儲存 ---------- */
+const memoryStore = new Map();
+let storageAvailable = true;
+
+function storageWarning(text) {
+  $("storageNotice").hidden = false;
+  $("storageNotice").textContent = text;
+}
+
+function readStore(key) {
+  if (memoryStore.has(key)) return memoryStore.get(key);
+  if (!storageAvailable) return null;
+  try {
+    const value = localStorage.getItem(key);
+    if (value !== null) memoryStore.set(key, value);
+    return value;
+  } catch {
+    storageAvailable = false;
+    storageWarning("本機儲存不可用。仍可使用，但重新開頁後設定可能不會保留。");
+    return null;
+  }
+}
+
+function writeStore(key, value) {
+  const text = String(value);
+  memoryStore.set(key, text);
+  if (!storageAvailable) return;
+  try {
+    localStorage.setItem(key, text);
+  } catch {
+    storageAvailable = false;
+    storageWarning("儲存失敗。目前變更只保留喺本頁，重新開頁後可能遺失。");
+  }
+}
+
+/* ---------- 分頁 ---------- */
+let activeTab = "dashboard";
+
+function switchTab(name) {
+  const panel = $("tab-" + name);
+  if (!panel) return;
+
+  activeTab = name;
+  document.querySelectorAll(".nav-btn").forEach(button => {
+    const active = button.dataset.tab === name;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  document.querySelectorAll("main > section").forEach(section => {
+    section.hidden = section !== panel;
+  });
+
+  window.scrollTo({ top: 0, behavior: "instant" });
+  if (name === "dashboard" && !document.hidden) refreshDashboard();
+}
+
+document.querySelectorAll(".nav-btn").forEach(button => {
+  button.addEventListener("click", () => switchTab(button.dataset.tab));
+});
+
+/* ---------- ETA 資料及顯示 ---------- */
+function timeValue(value) {
+  if (!value || typeof value !== "string") return NaN;
+  let text = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(text)) {
+    text = text.replace(" ", "T") + "+08:00";
+  }
+  return Date.parse(text);
+}
+
+function prepareRows(rows) {
+  const now = Date.now();
+  return rows.map(row => ({
+    ...row,
+    timestamp: typeof row.time === "number" ? row.time : timeValue(row.eta)
+  })).filter(row =>
+    Number.isFinite(row.timestamp) && row.timestamp >= now - 60000
+  ).sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function minutes(timestamp) {
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / 60000));
+}
+
+function boundName(value) {
+  if (value === "O" || value === "outbound") return "去程";
+  if (value === "I" || value === "inbound") return "回程";
+  return value ? String(value) : "";
+}
+
+function busRows(data) {
+  return (Array.isArray(data) ? data : []).map(row => ({
+    route: String(row.route || "巴士"),
+    dest: row.dest_tc || row.dest || row.dest_en || "",
+    eta: row.eta,
+    detail: [
+      boundName(row.dir),
+      row.service_type && Number(row.service_type) !== 1
+        ? "服務 " + row.service_type : ""
+    ].filter(Boolean).join(" · "),
+    remark: row.rmk_tc || row.rmk || row.rmk_en || "",
+    group: [row.route, row.dir, row.dest_tc || row.dest_en,
+      row.service_type, row.seq].join("|")
+  }));
+}
+
+function groupedRows(rows) {
+  const groups = new Map();
+  prepareRows(rows).forEach(row => {
+    const key = row.group || [row.route, row.dest, row.detail].join("|");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  });
+  return [...groups.values()].sort((a, b) => a[0].timestamp - b[0].timestamp);
+}
+
+function etaBlock(group) {
+  const first = group[0];
+  const mins = minutes(first.timestamp);
+  const block = node("div", "eta-block");
+  const head = node("div", "eta-head");
+  const info = node("div", "eta-info");
+
+  info.append(node("div", "eta-dest", first.dest ? "往 " + first.dest : "下一班"));
+  if (first.detail) info.append(node("div", "eta-detail", first.detail));
+  head.append(node("span", "route-badge", first.route || "班次"), info);
+
+  const main = node("div", "eta-main");
+  const time = node(
+    "div",
+    "eta-time" + (mins <= 2 ? " soon" : mins <= 5 ? " warn" : "") +
+      (mins === 0 ? " arriving" : "")
+  );
+
+  if (mins === 0) {
+    time.textContent = "即將到達";
+  } else {
+    time.append(document.createTextNode(String(mins)), node("small", "", "分鐘"));
+  }
+
+  main.append(node("span", "eta-caption", "下一班"), time);
+  block.append(head, main);
+
+  const later = group.slice(1, 4);
+  if (later.length) {
+    block.append(node("div", "eta-later",
+      "之後：" + later.map(row => {
+        const m = minutes(row.timestamp);
+        return m === 0 ? "即將到達" : m + " 分鐘";
+      }).join(" · ")
+    ));
+  }
+
+  if (first.remark) block.append(node("div", "eta-remark", first.remark));
+  return block;
+}
+
+function renderRows(box, rows, previewLimit = 0, grid = false) {
+  const groups = groupedRows(rows);
+  if (!groups.length) {
+    resultMessage(box, "暫未有有效班次，可能已收班或未提供預報。");
+    return;
+  }
+
+  const list = node("div", grid ? "result-grid" : "eta-stack");
+  const visible = previewLimit ? groups.slice(0, previewLimit) : groups;
+  visible.forEach(group => list.append(etaBlock(group)));
+  box.replaceChildren(list);
+
+  if (previewLimit && groups.length > previewLimit) {
+    const details = node("details");
+    const extra = node("div", "eta-stack");
+    groups.slice(previewLimit).forEach(group => extra.append(etaBlock(group)));
+    details.append(
+      node("summary", "", `另外 ${groups.length - previewLimit} 條路線／方向`),
+      extra
+    );
+    box.append(details);
+  }
+}
+
+/* ---------- 港鐵 ---------- */
+function stations(text) {
+  return Object.fromEntries(text.split("|").map(part => {
+    const i = part.indexOf(":");
+    return [part.slice(0, i), part.slice(i + 1)];
+  }));
+}
+
+const MTR_LINES = {
+  AEL: { name: "機場快綫", stations: stations("HOK:香港|KOW:九龍|TSY:青衣|AIR:機場|AWE:博覽館") },
+  TCL: { name: "東涌綫", stations: stations("HOK:香港|KOW:九龍|OLY:奧運|NAC:南昌|LAK:荔景|TSY:青衣|SUN:欣澳|TUC:東涌") },
+  TWL: { name: "荃灣綫", stations: stations("CEN:中環|ADM:金鐘|TST:尖沙咀|JOR:佐敦|YMT:油麻地|MOK:旺角|PRE:太子|SSP:深水埗|CSW:長沙灣|LCK:荔枝角|MEF:美孚|LAK:荔景|KWF:葵芳|KWH:葵興|TWH:大窩口|TSW:荃灣") },
+  ISL: { name: "港島綫", stations: stations("KET:堅尼地城|HKU:香港大學|SYP:西營盤|SHW:上環|CEN:中環|ADM:金鐘|WAC:灣仔|CAB:銅鑼灣|TIH:天后|FOH:炮台山|NOP:北角|QUB:鰂魚涌|TAK:太古|SWH:西灣河|SKW:筲箕灣|HFC:杏花邨|CHW:柴灣") },
+  KTL: { name: "觀塘綫", stations: stations("WHA:黃埔|HOM:何文田|YMT:油麻地|MOK:旺角|PRE:太子|SKM:石硤尾|KOT:九龍塘|LOF:樂富|WTS:黃大仙|DIH:鑽石山|CHH:彩虹|KOB:九龍灣|NTK:牛頭角|KWT:觀塘|LAT:藍田|YAT:油塘|TIK:調景嶺") },
+  SIL: { name: "南港島綫", stations: stations("ADM:金鐘|OCP:海洋公園|WCH:黃竹坑|LET:利東|SOH:海怡半島") },
+  TKL: { name: "將軍澳綫", stations: stations("NOP:北角|QUB:鰂魚涌|YAT:油塘|TIK:調景嶺|TKO:將軍澳|LHP:康城|HAH:坑口|POA:寶琳") },
+  EAL: { name: "東鐵綫", stations: stations("ADM:金鐘|EXC:會展|HUH:紅磡|MKK:旺角東|KOT:九龍塘|TAW:大圍|SHT:沙田|FOT:火炭|RAC:馬場|UNI:大學|TAP:大埔墟|TWO:太和|FAN:粉嶺|SHS:上水|LOW:羅湖|LMC:落馬洲") },
+  TML: { name: "屯馬綫", stations: stations("WKS:烏溪沙|MOS:馬鞍山|HEO:恒安|TSH:大水坑|SHM:石門|CIO:第一城|STW:沙田圍|CKT:車公廟|TAW:大圍|HIK:顯徑|DIH:鑽石山|KAT:啟德|SUW:宋皇臺|TKW:土瓜灣|HOM:何文田|HUH:紅磡|ETS:尖東|AUS:柯士甸|NAC:南昌|MEF:美孚|TWW:荃灣西|KSR:錦上路|YUL:元朗|LOP:朗屏|TIS:天水圍|SIH:兆康|TUM:屯門") },
+  DRL: { name: "迪士尼綫", stations: stations("SUN:欣澳|DIS:迪士尼") }
+};
+
+function stationName(code) {
+  for (const line of Object.values(MTR_LINES)) {
+    if (line.stations[code]) return line.stations[code];
+  }
+  return code || "";
+}
+
+function populateMTRStations() {
+  $("mtrSta").replaceChildren(
+    ...Object.entries(MTR_LINES[$("mtrLine").value].stations)
+      .map(([code, name]) => opt(code, name))
+  );
+}
+
+async function loadMTR(automatic = false) {
+  const line = $("mtrLine").value;
+  const sta = $("mtrSta").value;
+  writeStore("mtrLine", line);
+  writeStore("mtrSta", sta);
+
+  await task("mtr", $("mtrResult"), async current => {
+    const json = await fetchJSON(
+      `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${enc(line)}&sta=${enc(sta)}&lang=TC`
+    );
+    if (!current()) return;
+
+    updated("mtrUpdated");
+    const box = $("mtrResult");
+
+    if (Number(json.status) === 0) {
+      resultMessage(box, json.message || "暫未有班次或有特別車務安排。");
+      return;
+    }
+
+    const data = json.data?.[`${line}-${sta}`];
+    if (!data) {
+      resultMessage(box, "此站暫未提供班次資料。");
+      return;
+    }
+
+    box.replaceChildren();
+    if (json.isdelay === "Y") {
+      box.append(node("p", "error", "可能有車務延誤，請留意港鐵公布。"));
+    }
+
+    let found = false;
+    for (const direction of ["UP", "DOWN"]) {
+      const trains = Array.isArray(data[direction]) ? data[direction] : [];
+      if (!trains.length) continue;
+      found = true;
+
+      box.append(node("p", "direction-title",
+        direction === "UP" ? "↑ 上行列車" : "↓ 下行列車"));
+
+      const section = node("div");
+      renderRows(section, trains.map(train => ({
+        route: MTR_LINES[line].name,
+        dest: stationName(train.dest),
+        eta: train.time,
+        detail: "月台 " + (train.plat || "—"),
+        group: [direction, train.dest, train.plat].join("|")
+      })), 0, true);
+      box.append(section);
+    }
+    if (!found) resultMessage(box, "暫時未有列車班次。");
+  }, !automatic);
+}
+
+$("mtrLine").addEventListener("change", () => {
+  invalidate("mtr");
+  populateMTRStations();
+  $("mtrUpdated").textContent = "";
+  resultMessage($("mtrResult"), "按「查詢到站」載入所選車站。");
+});
+$("mtrSta").addEventListener("change", () => {
+  invalidate("mtr");
+  $("mtrUpdated").textContent = "";
+  resultMessage($("mtrResult"), "按「查詢到站」載入所選車站。");
+});
+$("mtrQuery").addEventListener("click", () => loadMTR());
+
+/* ---------- 九巴 ---------- */
+const KMB_BASE = "https://data.etabus.gov.hk/v1/transport/kmb";
+let kmbStopsPromise = null;
+let kmbRoutesPromise = null;
+
+function getKMBStops() {
+  if (!kmbStopsPromise) {
+    kmbStopsPromise = fetchJSON(KMB_BASE + "/stop").then(json => {
+      if (!Array.isArray(json.data)) throw new Error("九巴站點資料格式不正確");
+      return json.data;
+    }).catch(error => {
+      kmbStopsPromise = null;
+      throw error;
+    });
+  }
+  return kmbStopsPromise;
+}
+
+function getKMBRoutes() {
+  if (!kmbRoutesPromise) {
+    kmbRoutesPromise = fetchJSON(KMB_BASE + "/route/").then(json => {
+      if (!Array.isArray(json.data)) throw new Error("九巴路線資料格式不正確");
+      return json.data;
+    }).catch(error => {
+      kmbRoutesPromise = null;
+      throw error;
+    });
+  }
+  return kmbRoutesPromise;
+}
+
+function matchStops(stops, keyword) {
+  const lower = keyword.toLowerCase();
+  return stops.filter(stop =>
+    String(stop.name_tc || "").includes(keyword) ||
+    String(stop.name_en || "").toLowerCase().includes(lower)
+  );
+}
+
+async function searchKMBStop() {
+  const keyword = $("kmbSearch").value.trim();
+  const box = $("kmbSearchResult");
+  if (!keyword) {
+    invalidate("kmbSearch");
+    box.replaceChildren();
+    return;
+  }
+
+  await task("kmbSearch", box, async current => {
+    const stops = await getKMBStops();
+    if (!current()) return;
+
+    const matches = matchStops(stops, keyword);
+    box.replaceChildren();
+    if (!matches.length) {
+      message(box, "找不到相關九巴站點。");
+      return;
+    }
+
+    box.append(node("p", "muted", `找到 ${matches.length} 個站點，顯示首 40 個。`));
+    matches.slice(0, 40).forEach(stop => {
+      stopButton(box, `${stop.name_tc || stop.name_en} · ${stop.stop}`, () => {
+        $("kmbStopId").value = stop.stop;
+        loadKMB();
+      });
+    });
+  });
+}
+
+async function loadKMB(automatic = false) {
+  const stopId = $("kmbStopId").value.trim().toUpperCase();
+  if (!stopId) {
+    if (!automatic) resultMessage($("kmbResult"), "請先選擇車站或輸入 Stop ID。");
+    return;
+  }
+  writeStore("kmbStopId", stopId);
+
+  await task("kmb", $("kmbResult"), async current => {
+    const json = await fetchJSON(`${KMB_BASE}/stop-eta/${enc(stopId)}`);
+    if (!current()) return;
+    renderRows($("kmbResult"), busRows(json.data), 0, true);
+    updated("kmbUpdated");
+  }, !automatic);
+}
+
+$("kmbSearchBtn").addEventListener("click", searchKMBStop);
+$("kmbSearch").addEventListener("input", () => invalidate("kmbSearch"));
+$("kmbSearch").addEventListener("keydown", e => {
+  if (e.key === "Enter") searchKMBStop();
+});
+$("kmbQuery").addEventListener("click", () => loadKMB());
+$("kmbStopId").addEventListener("input", () => {
+  invalidate("kmb");
+  $("kmbUpdated").textContent = "";
+  resultMessage($("kmbResult"), "按「查詢」載入新的 Stop ID。");
+});
+$("kmbStopId").addEventListener("keydown", e => {
+  if (e.key === "Enter") loadKMB();
+});
+
+/* ---------- 城巴／NLB ---------- */
+const CTB_BASE = "https://rt.data.gov.hk/v2/transport/citybus";
+const ctbStopCache = new Map();
+
+async function getCTBStopName(stopId) {
+  if (!ctbStopCache.has(stopId)) {
+    ctbStopCache.set(stopId,
+      fetchJSON(`${CTB_BASE}/stop/${enc(stopId)}`).then(json =>
+        json.data?.name_tc || json.data?.name_en || stopId
+      ).catch(error => {
+        ctbStopCache.delete(stopId);
+        throw error;
+      })
+    );
+  }
+  return ctbStopCache.get(stopId);
+}
+
+async function searchCTBRoute() {
+  const box = $("ctbSearchResult");
+  if ($("ctbCo").value !== "CTB") return;
+  const route = $("ctbRoute").value.trim().toUpperCase();
+  const direction = $("ctbDir").value;
+
+  if (!route) {
+    message(box, "請輸入城巴路線號。");
+    return;
+  }
+
+  await task("ctbSearch", box, async current => {
+    const json = await fetchJSON(
+      `${CTB_BASE}/route-stop/CTB/${enc(route)}/${enc(direction)}`
+    );
+    const stops = (Array.isArray(json.data) ? json.data : [])
+      .slice().sort((a, b) => Number(a.seq) - Number(b.seq));
+    if (!current()) return;
+    if (!stops.length) {
+      message(box, "找不到站點，請檢查路線號及方向。");
+      return;
+    }
+
+    const named = await mapLimit(stops, 5, async stop => {
+      if (!current()) return null;
+      try {
+        return { ...stop, name: await getCTBStopName(stop.stop) };
+      } catch {
+        return { ...stop, name: stop.stop };
+      }
+    });
+
+    if (!current()) return;
+    box.replaceChildren();
+    named.filter(Boolean).forEach(stop => {
+      stopButton(box, `${stop.seq}. ${stop.name}`, () => {
+        $("ctbStopId").value = stop.stop;
+        loadCTB();
+      });
+    });
+  });
+}
+
+async function loadCTB(automatic = false) {
+  const company = $("ctbCo").value;
+  const stopId = $("ctbStopId").value.trim();
+  if (!stopId) {
+    if (!automatic) resultMessage($("ctbResult"), "請先選擇車站或輸入 Stop ID。");
+    return;
+  }
+  writeStore("ctbCo", company);
+  writeStore("ctbStopId", stopId);
+
+  await task("ctb", $("ctbResult"), async current => {
+    const json = await fetchJSON(
+      `https://rt.data.gov.hk/v1/transport/batch/stop-eta/${enc(company)}/${enc(stopId)}?lang=zh-hant`
+    );
+    if (!current()) return;
+    renderRows($("ctbResult"), busRows(json.data), 0, true);
+    updated("ctbUpdated");
+  }, !automatic);
+}
+
+function syncCTBControls() {
+  const citybus = $("ctbCo").value === "CTB";
+  ["ctbRoute", "ctbDir", "ctbSearchBtn"].forEach(id => $(id).disabled = !citybus);
+  $("ctbDirect").open = !citybus;
+}
+
+$("ctbCo").addEventListener("change", () => {
+  invalidate("ctb");
+  invalidate("ctbSearch");
+  $("ctbStopId").value = "";
+  $("ctbSearchResult").replaceChildren();
+  $("ctbUpdated").textContent = "";
+  syncCTBControls();
+  resultMessage($("ctbResult"), "請選擇或輸入此公司的車站 ID。");
+});
+$("ctbRoute").addEventListener("input", () => invalidate("ctbSearch"));
+$("ctbDir").addEventListener("change", () => {
+  invalidate("ctbSearch");
+  $("ctbSearchResult").replaceChildren();
+});
+$("ctbSearchBtn").addEventListener("click", searchCTBRoute);
+$("ctbQuery").addEventListener("click", () => loadCTB());
+$("ctbStopId").addEventListener("input", () => {
+  invalidate("ctb");
+  $("ctbUpdated").textContent = "";
+  resultMessage($("ctbResult"), "按「查詢」載入新的 Stop ID。");
+});
+$("ctbStopId").addEventListener("keydown", e => {
+  if (e.key === "Enter") loadCTB();
+});
+
+/* ---------- 綠色專線小巴 ---------- */
+const GMB_BASE = "https://data.etagmb.gov.hk";
+const gmbState = {
+  region: "", routeCode: "", directions: [], direction: null,
+  stops: [], selected: null
+};
+
+function clearGMBSelection() {
+  invalidate("gmb");
+  gmbState.selected = null;
+  $("gmbUpdated").textContent = "";
+  $("gmbSelected").hidden = true;
+  $("gmbAddCurrent").hidden = true;
+  resultMessage($("gmbResult"), "選好方向及站點後，到站資料會顯示喺呢度。");
+}
+
+function resetGMBStops() {
+  invalidate("gmbStops");
+  gmbState.direction = null;
+  gmbState.stops = [];
+  $("gmbStopResult").replaceChildren();
+  clearGMBSelection();
+}
+
+function resetGMBDirections() {
+  invalidate("gmbDirections");
+  gmbState.directions = [];
+  resetSelect("gmbDir", "請先選路線");
+  $("gmbStopsBtn").disabled = true;
+  $("gmbDirectionStep").hidden = true;
+  resetGMBStops();
+}
+
+function resetGMBRoutes() {
+  invalidate("gmbRoutes");
+  gmbState.region = "";
+  gmbState.routeCode = "";
+  resetSelect("gmbRoute", "請先載入路線");
+  $("gmbDirectionsBtn").disabled = true;
+  $("gmbRouteStep").hidden = true;
+  resetGMBDirections();
+}
+
+function parseGMBRouteCodes(json, region) {
+  const data = json.data;
+  const routes = data?.routes;
+  const raw = Array.isArray(routes) ? routes
+    : Array.isArray(routes?.[region]) ? routes[region]
+    : Array.isArray(data?.[region]) ? data[region]
+    : Array.isArray(data) ? data : null;
+
+  if (!raw) throw new Error("小巴路線清單格式不符合預期");
+
+  return [...new Set(raw.map(value => {
+    if (typeof value === "string" || typeof value === "number") return String(value);
+    return value?.route_code ? String(value.route_code) : "";
+  }).filter(Boolean))].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+}
+
+async function loadGMBRoutes() {
+  resetGMBRoutes();
+  const region = $("gmbRegion").value;
+
+  await task("gmbRoutes", $("gmbStopResult"), async current => {
+    const json = await fetchJSON(`${GMB_BASE}/route/${enc(region)}`);
+    if (!current()) return;
+    const codes = parseGMBRouteCodes(json, region);
+    if (!codes.length) {
+      message($("gmbStopResult"), "此地區暫未有支援即時預報的路線。");
+      return;
+    }
+
+    gmbState.region = region;
+    $("gmbRoute").replaceChildren(...codes.map(code => opt(code, code)));
+    $("gmbRoute").disabled = false;
+    $("gmbDirectionsBtn").disabled = false;
+    $("gmbRouteStep").hidden = false;
+    $("gmbStopResult").replaceChildren();
+  });
+}
+
+async function loadGMBDirections() {
+  const region = $("gmbRegion").value;
+  const routeCode = $("gmbRoute").value;
+  if (!routeCode || $("gmbRoute").disabled) return;
+
+  resetGMBDirections();
+
+  await task("gmbDirections", $("gmbStopResult"), async current => {
+    const json = await fetchJSON(
+      `${GMB_BASE}/route/${enc(region)}/${enc(routeCode)}`
+    );
+    if (!current()) return;
+
+    const routes = Array.isArray(json.data) ? json.data : [];
+    const directions = routes.flatMap(route =>
+      (Array.isArray(route.directions) ? route.directions : []).map(direction => ({
+        ...direction, route_id: route.route_id,
+        description: route.description_tc || route.description_en || ""
+      }))
+    ).filter(d => d.route_id != null && d.route_seq != null);
+
+    if (!directions.length) {
+      message($("gmbStopResult"), "找不到路線方向資料。");
+      return;
+    }
+
+    gmbState.region = region;
+    gmbState.routeCode = routeCode;
+    gmbState.directions = directions;
+
+    $("gmbDir").replaceChildren(...directions.map((d, i) => {
+      const label = [d.orig_tc || d.orig_en, d.dest_tc || d.dest_en]
+        .filter(Boolean).join(" → ") || "方向 " + d.route_seq;
+      return opt(i, label + (d.description ? " · " + d.description : ""));
+    }));
+
+    $("gmbDir").disabled = false;
+    $("gmbStopsBtn").disabled = false;
+    $("gmbDirectionStep").hidden = false;
+    $("gmbStopResult").replaceChildren();
+  });
+}
+
+async function loadGMBStops() {
+  const direction = gmbState.directions[Number($("gmbDir").value)];
+  if ($("gmbDir").disabled || !direction) return;
+
+  resetGMBStops();
+
+  await task("gmbStops", $("gmbStopResult"), async current => {
+    const json = await fetchJSON(
+      `${GMB_BASE}/route-stop/${enc(direction.route_id)}/${enc(direction.route_seq)}`
+    );
+    if (!current()) return;
+
+    const stops = Array.isArray(json.data?.route_stops) ? json.data.route_stops
+      : Array.isArray(json.data?.stops) ? json.data.stops
+      : Array.isArray(json.data) ? json.data : null;
+    if (!stops) throw new Error("小巴站點資料格式不符合預期");
+
+    const sorted = stops.filter(s => s.stop_seq != null)
+      .slice().sort((a, b) => Number(a.stop_seq) - Number(b.stop_seq));
+
+    gmbState.direction = { ...direction };
+    gmbState.stops = sorted;
+
+    const box = $("gmbStopResult");
+    box.replaceChildren();
+
+    if (!sorted.length) {
+      message(box, "此方向暫未有站點資料。");
+      return;
+    }
+
+    box.append(node("p", "muted", "點選你嘅上車站："));
+    sorted.forEach(stop => {
+      const name = stop.name_tc || stop.name_en || String(stop.stop_id || "");
+      stopButton(box, `${stop.stop_seq}. ${name}`, () => {
+        gmbState.selected = {
+          routeId: direction.route_id,
+          routeSeq: direction.route_seq,
+          stopSeq: stop.stop_seq,
+          stopId: stop.stop_id,
+          stopName: name,
+          route: gmbState.routeCode,
+          dest: direction.dest_tc || direction.dest_en || ""
+        };
+        $("gmbSelected").textContent = "已選：" + gmbState.routeCode + " · " + name;
+        $("gmbSelected").hidden = false;
+        $("gmbAddCurrent").hidden = false;
+        loadGMB();
+      });
+    });
+  });
+}
+
+function parseGMBEta(json, selection) {
+  const records = Array.isArray(json.data) ? json.data
+    : json.data && typeof json.data === "object" ? [json.data] : [];
+  const receivedAt = Date.now();
+
+  return records.filter(record => record.enabled !== false).filter(record =>
+    (record.route_id == null || String(record.route_id) === String(selection.routeId)) &&
+    (record.route_seq == null || String(record.route_seq) === String(selection.routeSeq)) &&
+    (record.stop_seq == null || String(record.stop_seq) === String(selection.stopSeq))
+  ).flatMap(record =>
+    (Array.isArray(record.eta) ? record.eta : []).map(eta => {
+      let timestamp = timeValue(eta.timestamp);
+      const diff = Number(eta.diff);
+      // GMB diff 單位為分鐘。
+      if (!Number.isFinite(timestamp) &&
+          eta.diff !== null && eta.diff !== undefined && Number.isFinite(diff)) {
+        timestamp = receivedAt + diff * 60000;
+      }
+      return {
+        route: String(selection.route || "小巴"),
+        dest: selection.dest || "",
+        time: timestamp,
+        detail: selection.stopName ? "上車站 · " + selection.stopName : "綠色專線小巴",
+        remark: eta.remarks_tc || eta.remarks_en || "",
+        group: [selection.routeId, selection.routeSeq, selection.stopSeq].join("|")
+      };
+    })
+  );
+}
+
+function fetchGMBEta(selection) {
+  return fetchJSON(
+    `${GMB_BASE}/eta/route-stop/${enc(selection.routeId)}/${enc(selection.routeSeq)}/${enc(selection.stopSeq)}`
+  );
+}
+
+async function loadGMB(automatic = false) {
+  if (!gmbState.selected) {
+    if (!automatic) resultMessage($("gmbResult"), "請先點選小巴上車站。");
+    return;
+  }
+  const selection = { ...gmbState.selected };
+
+  await task("gmb", $("gmbResult"), async current => {
+    const json = await fetchGMBEta(selection);
+    if (!current()) return;
+    renderRows($("gmbResult"), parseGMBEta(json, selection));
+    updated("gmbUpdated");
+  }, !automatic);
+}
+
+$("gmbRegion").addEventListener("change", resetGMBRoutes);
+$("gmbRoute").addEventListener("change", resetGMBDirections);
+$("gmbDir").addEventListener("change", resetGMBStops);
+$("gmbRoutesBtn").addEventListener("click", loadGMBRoutes);
+$("gmbDirectionsBtn").addEventListener("click", loadGMBDirections);
+$("gmbStopsBtn").addEventListener("click", loadGMBStops);
+
+/* ---------- 常用資料：沿用舊格式 ---------- */
+const FAV_KEY = "busFavourites";
+let favourites = [];
+
+function makeId() {
+  return globalThis.crypto?.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+}
+
+function normalizeFavourite(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  if (!["kmb-stop", "kmb-route", "gmb-route"].includes(raw.type)) return null;
+
+  const fav = {
+    ...raw,
+    id: typeof raw.id === "string" ? raw.id : makeId(),
+    name: String(raw.name || "常用項目").slice(0, 100)
+  };
+
+  if (fav.type.startsWith("kmb-") && !fav.stopId) return null;
+  if (fav.type === "kmb-route" &&
+      (!fav.route || !["O", "I"].includes(fav.dir) || fav.serviceType == null)) {
+    return null;
+  }
+
+  if (fav.type === "gmb-route") {
+    if (fav.routeId == null || fav.routeSeq == null || fav.stopSeq == null) return null;
+    // 更舊版本可能把上車站名放入 dest；避免誤當目的地。
+    if (!Object.prototype.hasOwnProperty.call(raw, "stopName")) {
+      fav.stopName = String(raw.dest || "");
+      fav.dest = "";
+    }
+    fav.route = String(fav.route || "小巴");
+  }
+  return fav;
+}
+
+function loadFavourites() {
+  const raw = readStore(FAV_KEY);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error("格式錯誤");
+    const ids = new Set();
+    let skipped = 0;
+
+    const list = parsed.map(item => {
+      const fav = normalizeFavourite(item);
+      if (!fav) skipped++;
+      return fav;
+    }).filter(Boolean).map(fav => {
+      if (ids.has(fav.id)) fav.id = makeId();
+      ids.add(fav.id);
+      return fav;
+    });
+
+    if (skipped) {
+      storageWarning(`有 ${skipped} 個舊常用項目格式不完整，未能顯示；請重新加入。`);
+    }
+    return list;
+  } catch {
+    storageWarning("常用資料格式損壞，暫以空清單開啟。原始資料未自動清除；新增會覆寫清單。");
+    return [];
+  }
+}
+
+function saveFavourites() {
+  writeStore(FAV_KEY, JSON.stringify(favourites));
+}
+
+/* ---------- 常用卡片 ---------- */
+const dashboardCards = new Map();
+let dashboardRevision = 0;
+let dashboardBusy = false;
+let dashboardQueued = false;
+
+function buildDashboard() {
+  const container = $("dashList");
+  dashboardCards.clear();
+
+  if (!favourites.length) {
+    const empty = node("div", "empty-state");
+    empty.style.gridColumn = "1 / -1";
+    empty.append(
+      node("div", "empty-icon", "⭐"),
+      node("h3", "", "將日常路線放喺呢度"),
+      node("p", "", "加入屋企樓下、返工站，唔使次次重新搜尋。")
+    );
+    const button = node("button", "btn btn-primary", "＋ 新增第一個常用");
+    button.addEventListener("click", () => openFavouriteModal());
+    empty.append(button);
+    container.replaceChildren(empty);
+    $("dashUpdated").textContent = "未有常用項目";
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  favourites.forEach(fav => {
+    const isGMB = fav.type === "gmb-route";
+    const card = node("article", "fav-card");
+    card.style.setProperty("--company", isGMB ? "#7de0b4" : "#ff8791");
+
+    const heading = node("div", "fav-heading");
+    const title = node("div");
+    title.append(
+      node("h3", "", fav.name),
+      node("span", "company-label",
+        isGMB ? "綠色專線小巴" : fav.type === "kmb-stop" ? "九巴 · 車站" : "九巴 · 路線")
+    );
+
+    const remove = node("button", "remove-btn", "×");
+    remove.setAttribute("aria-label", "移除 " + fav.name);
+    remove.addEventListener("click", () => {
+      if (!confirm(`移除「${fav.name}」？`)) return;
+      favourites = favourites.filter(item => item.id !== fav.id);
+      favouritesChanged();
+    });
+    heading.append(title, remove);
+
+    const body = node("div");
+    skeleton(body);
+
+    const footer = node("div", "fav-footer");
+    const location = node("span", "", fav.stopName || (fav.stopId ? "Stop ID · " + fav.stopId : "已儲存上車站"));
+    const status = node("span", "", "等待更新");
+    footer.append(location, status);
+
+    card.append(heading, body, footer);
+    fragment.append(card);
+    dashboardCards.set(fav.id, { body, status });
+  });
+  container.replaceChildren(fragment);
+}
+
+function favouritesChanged() {
+  dashboardRevision++;
+  saveFavourites();
+  buildDashboard();
+  refreshDashboard();
+}
+
+async function favouriteRows(fav) {
+  if (fav.type === "kmb-stop") {
+    const json = await fetchJSON(`${KMB_BASE}/stop-eta/${enc(fav.stopId)}`);
+    return busRows(json.data);
+  }
+  if (fav.type === "kmb-route") {
+    const json = await fetchJSON(
+      `${KMB_BASE}/eta/${enc(fav.stopId)}/${enc(fav.route)}/${enc(fav.serviceType)}`
+    );
+    return busRows((Array.isArray(json.data) ? json.data : [])
+      .filter(row => String(row.dir) === String(fav.dir))
+      .filter(row => fav.stopSeq == null || String(row.seq) === String(fav.stopSeq)));
+  }
+  if (fav.type === "gmb-route") {
+    return parseGMBEta(await fetchGMBEta(fav), fav);
+  }
+  throw new Error("不支援的常用類型");
+}
+
+async function refreshDashboard() {
+  if (dashboardBusy) {
+    dashboardQueued = true;
+    return;
+  }
+  if (!favourites.length) return;
+
+  dashboardBusy = true;
+  $("dashRefresh").disabled = true;
+
+  const revision = dashboardRevision;
+  const snapshot = favourites.map(fav => ({ ...fav }));
+  let failures = 0;
+
+  try {
+    await mapLimit(snapshot, 4, async fav => {
+      if (revision !== dashboardRevision) return;
+      const card = dashboardCards.get(fav.id);
+      if (!card) return;
+      card.status.textContent = "更新中…";
+
+      try {
+        const rows = await favouriteRows(fav);
+        if (revision !== dashboardRevision || !card.body.isConnected) return;
+        renderRows(card.body, rows, fav.type === "kmb-stop" ? 2 : 3);
+        card.status.textContent = "更新於 " + hkTime();
+        card.status.classList.remove("error");
+      } catch (error) {
+        failures++;
+        if (revision !== dashboardRevision || !card.body.isConnected) return;
+
+        // 失敗不保留看似即時的舊倒數，避免誤導。
+        resultMessage(card.body, "暫時讀取唔到，按 ↻ 再試。", true);
+        card.status.textContent = "更新失敗";
+        card.status.classList.add("error");
+        console.error(fav.name, error);
+      }
+    });
+
+    if (revision === dashboardRevision) {
+      $("dashUpdated").textContent = failures
+        ? `${hkTime()} · ${failures} 項未能更新`
+        : "更新於 " + hkTime();
+    }
+  } finally {
+    dashboardBusy = false;
+    $("dashRefresh").disabled = false;
+    if (dashboardQueued) {
+      dashboardQueued = false;
+      if (!document.hidden) refreshDashboard();
+    }
+  }
+}
+
+$("dashRefresh").addEventListener("click", refreshDashboard);
+
+/* ---------- 新增常用 ---------- */
+const modal = $("favModal");
+let favType = "kmb-stop";
+let pendingFavourite = null;
+
+function clearPendingFavourite() {
+  pendingFavourite = null;
+  $("favCustomName").value = "";
+  $("favSelection").textContent = "尚未選擇項目";
+  $("favSelection").classList.remove("ready");
+  $("confirmFav").disabled = true;
+}
+
+function chooseFavourite(fav) {
+  if (!modal.open || fav.type !== favType) return;
+  pendingFavourite = fav;
+  $("favCustomName").value = fav.name;
+  $("favSelection").textContent = "✓ 已選擇：" + fav.name;
+  $("favSelection").classList.add("ready");
+  $("confirmFav").disabled = false;
+}
+
+function invalidateModalTasks() {
+  ["favStop", "favDirections", "favStops"].forEach(invalidate);
+  debouncedFavStopSearch.cancel();
+  debouncedFavRouteSearch.cancel();
+}
+
+function setFavouriteType(type) {
+  invalidateModalTasks();
+  clearPendingFavourite();
+  favType = type;
+
+  document.querySelectorAll(".type-btn").forEach(button => {
+    const active = button.dataset.type === type;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  document.querySelectorAll(".fav-form").forEach(form => {
+    form.hidden = form.id !== "form-" + type;
+  });
+
+  ["favStopResults", "favRouteDirResults", "favRouteStopResults", "favGMBPreview"]
+    .forEach(id => $(id).replaceChildren());
+
+  if (type === "kmb-stop" && $("favStopSearch").value.trim()) searchFavouriteStop();
+  if (type === "kmb-route" && $("favRouteInput").value.trim()) searchFavouriteRoute();
+  if (type === "gmb-route") prefillGMBFavourite();
+}
+
+function openFavouriteModal(type = favType) {
+  modal.showModal();
+  setFavouriteType(type);
+}
+
+function closeFavouriteModal() {
+  modal.close();
+}
+
+$("addFav").addEventListener("click", () => openFavouriteModal());
+$("closeFav").addEventListener("click", closeFavouriteModal);
+$("cancelFav").addEventListener("click", closeFavouriteModal);
+$("gmbAddCurrent").addEventListener("click", () => openFavouriteModal("gmb-route"));
+
+modal.addEventListener("close", () => {
+  invalidateModalTasks();
+  clearPendingFavourite();
+});
+
+document.querySelectorAll(".type-btn").forEach(button => {
+  button.addEventListener("click", () => setFavouriteType(button.dataset.type));
+});
+
+async function searchFavouriteStop() {
+  if (!modal.open || favType !== "kmb-stop") return;
+  const keyword = $("favStopSearch").value.trim();
+  const box = $("favStopResults");
+  if (!keyword) {
+    box.replaceChildren();
+    return;
+  }
+
+  await task("favStop", box, async current => {
+    const stops = await getKMBStops();
+    if (!current()) return;
+    const matches = matchStops(stops, keyword);
+    box.replaceChildren();
+
+    if (!matches.length) {
+      message(box, "找不到相關九巴站點。");
+      return;
+    }
+
+    box.append(node("p", "muted", `找到 ${matches.length} 個站點，顯示首 40 個。`));
+    matches.slice(0, 40).forEach(stop => {
+      const name = stop.name_tc || stop.name_en || stop.stop;
+      stopButton(box, `${name} · ${stop.stop}`, () => chooseFavourite({
+        type: "kmb-stop", stopId: stop.stop, stopName: name, name
+      }));
+    });
+  });
+}
+
+async function searchFavouriteRoute() {
+  if (!modal.open || favType !== "kmb-route") return;
+  const route = $("favRouteInput").value.trim().toUpperCase();
+  const box = $("favRouteDirResults");
+  $("favRouteStopResults").replaceChildren();
+
+  if (!route) {
+    box.replaceChildren();
+    return;
+  }
+
+  await task("favDirections", box, async current => {
+    const routes = await getKMBRoutes();
+    if (!current()) return;
+
+    const seen = new Set();
+    const directions = routes.filter(item => {
+      if (String(item.route).toUpperCase() !== route) return false;
+      const key = [item.route, item.bound, item.service_type].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    box.replaceChildren();
+    if (!directions.length) {
+      message(box, "找不到此九巴路線。");
+      return;
+    }
+
+    box.append(node("p", "muted", "先選擇方向："));
+    directions.forEach(direction => {
+      const dest = direction.dest_tc || direction.dest_en || "";
+      stopButton(box,
+        `${direction.route} 往 ${dest} · ${boundName(direction.bound)} · 服務 ${direction.service_type}`,
+        () => selectFavouriteDirection(direction));
+    });
+  });
+}
+
+async function selectFavouriteDirection(direction) {
+  clearPendingFavourite();
+  invalidate("favStops");
+  const box = $("favRouteStopResults");
+  const bound = direction.bound === "O" ? "outbound" : "inbound";
+
+  await task("favStops", box, async current => {
+    const [json, allStops] = await Promise.all([
+      fetchJSON(`${KMB_BASE}/route-stop/${enc(direction.route)}/${bound}/${enc(direction.service_type)}`),
+      getKMBStops()
+    ]);
+    if (!current()) return;
+
+    const names = new Map(allStops.map(stop => [
+      stop.stop, stop.name_tc || stop.name_en || stop.stop
+    ]));
+    const stops = (Array.isArray(json.data) ? json.data : [])
+      .slice().sort((a, b) => Number(a.seq) - Number(b.seq));
+
+    box.replaceChildren();
+    if (!stops.length) {
+      message(box, "找不到此方向的站點。");
+      return;
+    }
+
+    box.append(node("p", "muted", "再選擇上車站："));
+    stops.forEach(stop => {
+      const name = names.get(stop.stop) || stop.stop;
+      stopButton(box, `${stop.seq}. ${name}`, () => chooseFavourite({
+        type: "kmb-route",
+        route: direction.route,
+        dir: direction.bound,
+        serviceType: direction.service_type,
+        stopId: stop.stop,
+        stopSeq: stop.seq,
+        stopName: name,
+        dest: direction.dest_tc || direction.dest_en || "",
+        name: `${direction.route} @ ${name}`
+      }));
+    });
+  });
+}
+
+function prefillGMBFavourite() {
+  if (!modal.open || favType !== "gmb-route") return;
+  clearPendingFavourite();
+
+  if (!gmbState.selected) {
+    message($("favGMBPreview"), "請先喺小巴分頁點選一個上車站。");
+    return;
+  }
+
+  const fav = {
+    ...gmbState.selected,
+    type: "gmb-route",
+    name: `${gmbState.selected.route} 小巴 @ ${gmbState.selected.stopName}`
+  };
+  chooseFavourite(fav);
+  message($("favGMBPreview"), fav.dest ? "行車方向：往 " + fav.dest : "已帶入目前選擇。");
+}
+
+function sameFavourite(a, b) {
+  if (a.type !== b.type) return false;
+  if (a.type === "kmb-stop") return String(a.stopId) === String(b.stopId);
+  const fields = a.type === "kmb-route"
+    ? ["stopId", "route", "dir", "serviceType", "stopSeq"]
+    : ["routeId", "routeSeq", "stopSeq"];
+  return fields.every(key => String(a[key] ?? "") === String(b[key] ?? ""));
+}
+
+function confirmFavourite() {
+  if (!pendingFavourite || pendingFavourite.type !== favType) return;
+  if (favourites.some(fav => sameFavourite(fav, pendingFavourite))) {
+    alert("呢個項目已經喺常用清單入面。");
+    return;
+  }
+
+  favourites.push({
+    ...pendingFavourite,
+    id: makeId(),
+    name: $("favCustomName").value.trim() || pendingFavourite.name
+  });
+
+  closeFavouriteModal();
+  $("favStopSearch").value = "";
+  $("favRouteInput").value = "";
+  favouritesChanged();
+  switchTab("dashboard");
+}
+
+const debouncedFavStopSearch = debounce(searchFavouriteStop);
+const debouncedFavRouteSearch = debounce(searchFavouriteRoute);
+
+$("favStopSearch").addEventListener("input", () => {
+  clearPendingFavourite();
+  invalidate("favStop");
+  $("favStopResults").replaceChildren();
+  debouncedFavStopSearch();
+});
+
+$("favRouteInput").addEventListener("input", () => {
+  clearPendingFavourite();
+  invalidate("favDirections");
+  invalidate("favStops");
+  $("favRouteDirResults").replaceChildren();
+  $("favRouteStopResults").replaceChildren();
+  debouncedFavRouteSearch();
+});
+
+$("prefillGMB").addEventListener("click", prefillGMBFavourite);
+$("confirmFav").addEventListener("click", confirmFavourite);
+
+/* ---------- 自動更新 ---------- */
+const queryLoaders = {
+  mtr: loadMTR, kmb: loadKMB, ctb: loadCTB, gmb: loadGMB
+};
+
+function refreshVisibleAuto() {
+  if (document.hidden || modal.open) return;
+  if (activeTab === "dashboard") {
+    if (!dashboardBusy) refreshDashboard();
+    return;
+  }
+
+  const checkbox = $(activeTab + "Auto");
+  const loader = queryLoaders[activeTab];
+  if (checkbox?.checked && loader && !pendingTasks.has(activeTab)) loader(true);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    updateClock();
+    refreshVisibleAuto();
+  }
+});
+
+["mtr", "kmb", "ctb", "gmb"].forEach(name => {
+  $(name + "Auto").addEventListener("change", () => {
+    if (activeTab === name && $(name + "Auto").checked) refreshVisibleAuto();
+  });
+});
+
+/* ---------- 初始化 ---------- */
+function init() {
+  updateClock();
+
+  $("mtrLine").replaceChildren(
+    ...Object.entries(MTR_LINES).map(([code, line]) => opt(code, line.name))
+  );
+  const savedLine = readStore("mtrLine");
+  if (savedLine && MTR_LINES[savedLine]) $("mtrLine").value = savedLine;
+  populateMTRStations();
+
+  const savedStation = readStore("mtrSta");
+  if (savedStation && MTR_LINES[$("mtrLine").value].stations[savedStation]) {
+    $("mtrSta").value = savedStation;
+  }
+
+  const kmbStop = readStore("kmbStopId");
+  if (kmbStop) $("kmbStopId").value = kmbStop;
+
+  const company = readStore("ctbCo");
+  if (company === "CTB" || company === "NLB") $("ctbCo").value = company;
+  const ctbStop = readStore("ctbStopId");
+  if (ctbStop) $("ctbStopId").value = ctbStop;
+  syncCTBControls();
+
+  resultMessage($("mtrResult"), "選好車站後，按「查詢到站」。");
+  resultMessage($("kmbResult"), "搜尋並點選上車站，即可查看到站時間。");
+  resultMessage($("ctbResult"), "選擇城巴站點，或直接輸入 Stop ID。");
+  resultMessage($("gmbResult"), "選好方向及站點後，到站資料會顯示喺呢度。");
+
+  favourites = loadFavourites();
+  buildDashboard();
+  refreshDashboard();
+
+  setInterval(refreshVisibleAuto, 30000);
+  setInterval(() => {
+    if (!document.hidden) updateClock();
+  }, 10000);
+}
+
+init();
+</script>
+</body>
+</html>
