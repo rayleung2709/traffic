@@ -1292,32 +1292,94 @@ const apiDirection =
       return details.filter(stop =>
         config.stopTerms.some(term => stop.name.includes(term))
       );
-    }
-
-    async function fetchCTB(config, force) {
+async function fetchCTB(config, force) {
       const candidates = await findBusStops(config);
       const stop = chooseStop(config, candidates);
 
+      const url =
+        `${CTB_BASE}/eta/CTB/${stop.stop}/${config.route}`;
+
       const packet = await getJSON(
-        `${CTB_BASE}/eta/CTB/${stop.stop}/${config.route}`,
+        url,
         SETTINGS.etaCacheMs,
         force
       );
 
-      if (!Array.isArray(packet.data?.data)) {
+      const raw = packet.data?.data;
+
+      if (!Array.isArray(raw)) {
         throw new Error("巴士預報格式錯誤");
       }
 
-      const rows = packet.data.data.filter(row =>
+      // 先確認同一站、同一路線、同一方向。
+      const sameDirection = raw.filter(row =>
         row &&
-        row.dir === config.bound &&
+        String(row.route).trim() === String(config.route) &&
+        String(row.stop).trim() === String(stop.stop) &&
+        String(row.dir).trim().toUpperCase() === config.bound
+      );
+
+      // 優先使用與路線站序完全一致的紀錄。
+      let rows = sameDirection.filter(row =>
         Number(row.seq) === stop.seq
       );
+
+      let sequenceWarning = "";
+
+      if (!rows.length && sameDirection.length) {
+        const sequences = new Set(
+          sameDirection.map(row => String(row.seq))
+        );
+
+        if (sequences.size === 1) {
+          rows = sameDirection;
+          sequenceWarning =
+            "站序與路線資料不同，已按同站／同方向配對";
+        } else {
+          console.warn("城巴站序配對不一致", {
+            route: config.route,
+            direction: config.bound,
+            stop: stop.stop,
+            expectedSeq: stop.seq,
+            data: raw
+          });
+
+          throw new Error("收到多組站序，未能安全配對");
+        }
+      }
 
       const result = normalize(rows.map(row => ({
         time: row.eta,
         destination: row.dest_tc || row.dest_en || ""
       })));
+
+      let emptyMessage = "暫無預報";
+      let diagnostic = "";
+
+      if (!raw.length) {
+        emptyMessage = "API 暫無資料";
+        diagnostic = "城巴回傳空陣列，未能判斷是否有車";
+      } else if (!sameDirection.length) {
+        emptyMessage = "未配對到方向";
+        diagnostic = "API 有資料，但未配對到本站／本方向";
+      } else if (!result.arrivals.length) {
+        emptyMessage = "未提供到站時間";
+        diagnostic = "收到本站班次紀錄，但 ETA 時間為空";
+      }
+
+      if (!result.arrivals.length) {
+        console.warn("城巴無可用 ETA", {
+          url,
+          route: config.route,
+          direction: config.bound,
+          stop: stop.stop,
+          expectedSeq: stop.seq,
+          rawCount: raw.length,
+          directionCount: sameDirection.length,
+          matchedCount: rows.length,
+          data: raw
+        });
+      }
 
       return {
         arrivals: result.arrivals,
@@ -1326,11 +1388,18 @@ const apiDirection =
         sourceAt:
           latestTime(rows.map(row => row.data_timestamp)) ??
           firstTime(packet.data.generated_timestamp),
-        warning: result.warning,
+
+        warning: messages([
+          result.warning,
+          sequenceWarning,
+          diagnostic
+        ]),
+
         notice: messages(rows.map(row =>
           clean(row.rmk_tc) || clean(row.rmk_en)
         )),
-        emptyMessage: "暫無預報"
+
+        emptyMessage
       };
     }
 
