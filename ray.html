@@ -4,388 +4,398 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-
   <title>Dr Ray's Traffic ETA</title>
 
   <style>
-    /* =========================================================
-       1. 全站設定
-       改顏色、字體、間距，可以先由呢度開始。
-       ========================================================= */
-
     :root {
       color-scheme: dark;
-
-      --color-background: #000000;
-      --color-card: #16181d;
-      --color-control: #242730;
-
-      --color-text: #ffffff;
-      --color-muted: #b8bcc4;
-      --color-subtle: #9298a3;
-
-      --color-primary: #0a84ff;
-      --color-warning: #ffb340;
-      --color-soon: #ff6259;
-
-      --color-bus: #f4c40f;
-      --color-minibus: #3aa757;
-
-      --card-radius: 24px;
-      --page-width: 1100px;
-
-      --font-main:
-        -apple-system,
-        BlinkMacSystemFont,
-        "PingFang HK",
-        "Noto Sans HK",
-        sans-serif;
-
-      --font-mono:
-        "SF Mono",
-        Menlo,
-        Consolas,
-        monospace;
+      --bg: #000;
+      --card: #16181d;
+      --control: #242730;
+      --border: #383d47;
+      --text: #fff;
+      --muted: #c2c6ce;
+      --subtle: #a5abb6;
+      --blue: #0a84ff;
+      --warning: #ffbd59;
+      --soon: #ff827a;
+      --width: 1200px;
+      font-family:
+        -apple-system, BlinkMacSystemFont,
+        "PingFang HK", "Noto Sans HK", sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
 
     body {
       margin: 0;
-      padding-bottom: 32px;
-      background: var(--color-background);
-      color: var(--color-text);
-      font-family: var(--font-main);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-text-size-adjust: 100%;
     }
+
+    button, select { font: inherit; }
 
     button {
-      font: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    button:focus-visible {
-      outline: 3px solid var(--color-primary);
-      outline-offset: 4px;
+    button:focus-visible, select:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
     }
 
-    /* 避免其他 display 規則蓋過 hidden。 */
-    [hidden] {
-      display: none !important;
+    button:disabled, select:disabled {
+      opacity: .55;
+      cursor: not-allowed;
     }
 
-    /* =========================================================
-       2. 頁首及更新資訊
-       ========================================================= */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
 
     .topbar {
       position: sticky;
       top: 0;
-      z-index: 10;
-      padding: 18px 14px 12px;
-      background: var(--color-background);
-      border-bottom: 1px solid #202228;
+      z-index: 20;
+      padding: 14px 12px 12px;
+      background: var(--bg);
+      border-bottom: 1px solid #262930;
     }
 
-    .page-title {
-      margin: 0 0 14px;
+    h1 {
+      margin: 0 0 8px;
       text-align: center;
       font-size: 20px;
-      font-weight: 800;
     }
 
     .refresh-info {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      color: var(--color-subtle);
+      margin-bottom: 10px;
+      color: var(--subtle);
       font-size: 12px;
     }
 
     .refresh-track {
-      width: 90px;
+      width: 80px;
       height: 4px;
       overflow: hidden;
-      border-radius: 999px;
-      background: var(--color-control);
+      border-radius: 10px;
+      background: var(--control);
     }
 
-    .refresh-bar {
-      width: 100%;
+    #refreshBar {
       height: 100%;
-      background: var(--color-primary);
-      transition: width 0.4s linear;
+      width: 100%;
+      background: var(--blue);
+      transition: width .4s linear;
     }
 
-    .refresh-button {
+    #refreshButton {
       display: grid;
       place-items: center;
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       padding: 0;
-      border: 0;
+      border: 1px solid var(--border);
       border-radius: 50%;
-      background: var(--color-control);
-      color: var(--color-text);
-      cursor: pointer;
+      background: var(--control);
+      color: var(--text);
     }
 
-    .refresh-button:disabled {
-      opacity: 0.55;
-      cursor: wait;
-    }
-
-    .refresh-button__icon {
+    #refreshButton span {
       display: inline-block;
-      font-size: 23px;
-      line-height: 1;
+      font-size: 25px;
     }
 
-    .refresh-button.is-loading .refresh-button__icon {
-      animation: spin 0.8s linear infinite;
-    }
-
-    .refresh-result {
-      min-height: 18px;
-      margin: 5px 0 12px;
-      text-align: center;
-      color: var(--color-subtle);
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
+    #refreshButton.is-loading span {
+      animation: spin .8s linear infinite;
     }
 
     @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+      to { transform: rotate(360deg); }
     }
-
-    /* =========================================================
-       3. 分類篩選
-       使用普通 toggle buttons，唔需要額外 tab 鍵盤邏輯。
-       ========================================================= */
 
     .filters {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 8px;
+      gap: 7px;
     }
 
-    .filter-button {
-      min-height: 36px;
-      padding: 7px 16px;
-      border: 0;
+    .filter {
+      min-height: 44px;
+      padding: 9px 15px;
+      border: 1px solid var(--border);
       border-radius: 999px;
-      background: var(--color-control);
-      color: var(--color-text);
+      background: var(--control);
+      color: var(--text);
       font-size: 13px;
-      cursor: pointer;
+      font-weight: 700;
     }
 
-    .filter-button[aria-pressed="true"] {
-      background: var(--color-primary);
+    .filter[aria-pressed="true"] {
+      background: #005eb8;
+      border-color: #005eb8;
     }
 
-    /* =========================================================
-       4. 卡片版面
-       ========================================================= */
+    .network-notice, .fatal-error {
+      max-width: var(--width);
+      margin: 12px auto;
+      padding: 12px;
+      border: 1px solid #725225;
+      border-radius: 12px;
+      color: var(--warning);
+      background: #2d2314;
+      font-size: 13px;
+      line-height: 1.6;
+    }
 
-    .card-grid {
+    main {
+      max-width: var(--width);
+      margin: 0 auto;
+      padding: 0 14px calc(30px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .clinic {
+      padding-top: 22px;
+    }
+
+    .clinic + .clinic {
+      margin-top: 26px;
+      border-top: 1px solid var(--border);
+    }
+
+    .clinic-title {
+      margin: 0 0 16px;
+      font-size: 25px;
+      line-height: 1.35;
+    }
+
+    .commute {
+      margin-top: 18px;
+    }
+
+    .commute-heading {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+    }
+
+    .commute-heading h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .commute-tag {
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .commute-tag.out {
+      background: #123353;
+      color: #9bd0ff;
+    }
+
+    .commute-tag.back {
+      background: #153822;
+      color: #a6e3b7;
+    }
+
+    .path {
+      margin: 0 0 16px;
+      padding: 14px;
+      border: 1px solid #30343d;
+      border-radius: 18px;
+      background: #090b0f;
+    }
+
+    .path-header {
+      margin-bottom: 12px;
+    }
+
+    .path-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .path-description {
+      margin: 5px 0 0;
+      color: var(--subtle);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .legs {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-
-      max-width: var(--page-width);
-      margin: 18px auto 0;
-      padding: 0 14px;
+      gap: 10px;
+      align-items: stretch;
     }
 
     .eta-card {
       display: flex;
-      gap: 12px;
-      min-width: 0;
-      min-height: 230px;
-      padding: 16px;
-      border-radius: var(--card-radius);
-      background: var(--color-card);
-    }
-
-    .card-content {
-      display: flex;
-      flex: 1;
       flex-direction: column;
       min-width: 0;
+      min-height: 215px;
+      padding: 14px;
+      border: 1px solid transparent;
+      border-left: 4px solid var(--line-color, #606975);
+      border-radius: 16px;
+      background: var(--card);
     }
 
-    .route-badge {
-      display: flex;
+    .eta-card.has-warning {
+      border-top-color: #655030;
+      border-right-color: #655030;
+      border-bottom-color: #655030;
+    }
+
+    .step {
+      margin: 0 0 8px;
+      color: var(--subtle);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .card-line {
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
       align-self: flex-start;
-
-      min-width: 42px;
-      height: 42px;
-      padding: 0 8px;
+      gap: 7px;
+      padding: 4px 9px;
+      border: 1px solid var(--border);
       border-radius: 999px;
-
-      background: var(--color-bus);
-      color: #000000;
-      font-size: 19px;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 700;
     }
 
-    .eta-card[data-type="gmb"] .route-badge {
-      background: var(--color-minibus);
-      color: #ffffff;
+    .card-line::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--line-color, #606975);
     }
 
     .stop-name {
       margin: 10px 0 0;
       font-size: 21px;
       font-weight: 800;
-      line-height: 1.3;
+      line-height: 1.35;
       overflow-wrap: anywhere;
     }
 
-    .line-label {
-      align-self: flex-start;
-      margin-top: 8px;
-      padding: 3px 10px;
-      border-radius: 999px;
-
-      background: var(--line-color);
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .direction,
-    .next-arrivals {
+    .direction {
       margin: 6px 0 0;
-      color: var(--color-muted);
+      color: var(--muted);
       font-size: 14px;
       line-height: 1.5;
     }
 
-    .card-status {
-      min-height: 18px;
-      margin: 5px 0 0;
-      color: var(--color-subtle);
+    .platform {
+      margin: 4px 0 0;
+      color: var(--subtle);
       font-size: 12px;
+    }
+
+    .next {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
       line-height: 1.5;
     }
 
-    .card-updated {
-      margin: 6px 0 0;
-      color: var(--color-subtle);
-      font-family: var(--font-mono);
-      font-size: 11px;
+    .status {
+      margin: 8px 0 0;
+      color: var(--subtle);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .has-warning .status {
+      color: var(--warning);
     }
 
     .countdown {
       margin-top: auto;
-      padding-top: 12px;
+      padding-top: 16px;
       text-align: right;
       font-size: 38px;
       font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -1px;
       line-height: 1.2;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
     }
 
-    .countdown.is-soon {
-      color: var(--color-soon);
-    }
+    .countdown.is-soon { color: var(--soon); }
 
     .countdown.is-message {
-      font-size: 21px;
+      font-size: 20px;
       letter-spacing: 0;
     }
 
-    .eta-card.has-warning .card-status {
-      color: var(--color-warning);
+    .picker {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
     }
 
-    /* 港鐵左側路綫裝飾。 */
-    .mtr-track {
-      display: flex;
-      flex: 0 0 12px;
-      flex-direction: column;
-      align-items: center;
-      padding: 4px 0;
+    .picker label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
     }
 
-    .mtr-track__dot {
-      width: 11px;
-      height: 11px;
-      border: 3px solid var(--line-color);
-      border-radius: 50%;
-      background: var(--color-card);
+    .picker select {
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--control);
+      color: var(--text);
+      font-size: 12px;
     }
 
-    .mtr-track__line {
-      flex: 1;
-      width: 3px;
-      margin: 3px 0;
-      border-radius: 999px;
-      background: var(--line-color);
+    @media (max-width: 540px) {
+      main { padding-inline: 10px; }
+      .topbar { padding-inline: 8px; }
+      .filter { padding-inline: 11px; }
+      .clinic-title { font-size: 23px; }
+      .path { padding: 10px; }
+      .legs { grid-template-columns: 1fr; }
+      .eta-card { min-height: 195px; }
     }
 
-    .noscript-message {
-      padding: 24px;
-      text-align: center;
-      color: var(--color-warning);
-    }
-
-    /* =========================================================
-       5. 響應式及減少動畫設定
-       ========================================================= */
-
-    @media (max-width: 520px) {
-      .card-grid {
-        gap: 10px;
-        padding: 0 8px;
-      }
-
-      .eta-card {
-        gap: 8px;
-        padding: 14px 12px;
-      }
-
-      .stop-name {
-        font-size: 19px;
-      }
-
-      .countdown {
-        font-size: 34px;
-      }
-    }
-
-    @media (max-width: 340px) {
-      .card-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (min-width: 700px) {
-      .card-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    @media (min-width: 1000px) {
-      .card-grid {
+    @media (min-width: 900px) {
+      .legs {
         grid-template-columns: repeat(4, minmax(0, 1fr));
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
+      *, *::before, *::after {
         animation: none !important;
         transition: none !important;
       }
@@ -395,155 +405,124 @@
 
 <body>
   <header class="topbar">
-    <h1 class="page-title">Dr Ray's Traffic ETA</h1>
+    <h1>Dr Ray's Traffic ETA</h1>
 
     <div class="refresh-info">
       <span id="nextRefresh">準備更新…</span>
 
       <div class="refresh-track" aria-hidden="true">
-        <div id="refreshBar" class="refresh-bar"></div>
+        <div id="refreshBar"></div>
       </div>
 
       <button
         id="refreshButton"
-        class="refresh-button"
         type="button"
-        title="即刻更新"
         aria-label="即刻更新"
-      >
-        <span class="refresh-button__icon" aria-hidden="true">⟳</span>
-      </button>
+        title="即刻更新"
+      ><span aria-hidden="true">⟳</span></button>
     </div>
 
-    <!-- 只有完成更新時先公告，避免讀屏器每秒讀倒數。 -->
+    <nav class="filters" aria-label="診所選擇">
+      <button class="filter" type="button"
+        data-clinic="all" aria-pressed="true">全部</button>
+      <button class="filter" type="button"
+        data-clinic="hengon" aria-pressed="false">恒安</button>
+      <button class="filter" type="button"
+        data-clinic="causeway" aria-pressed="false">銅鑼灣</button>
+      <button class="filter" type="button"
+	data-clinic="quarry" aria-pressed="false">鰂魚涌</button>
+      <button class="filter" type="button"
+	data-clinic="mongkok" aria-pressed="false">旺角</button>
+
+<button class="filter" type="button"
+  data-clinic="hospital" aria-pressed="false">港安醫院</button>
+    </nav>
+
     <p
-      id="refreshResult"
-      class="refresh-result"
+      id="announcement"
+      class="sr-only"
       role="status"
       aria-live="polite"
-    >
-      尚未更新
-    </p>
-
-    <nav class="filters" aria-label="交通工具篩選">
-      <button
-        class="filter-button"
-        type="button"
-        data-filter="all"
-        aria-pressed="true"
-        aria-controls="cardGrid"
-      >全部</button>
-
-      <button
-        class="filter-button"
-        type="button"
-        data-filter="mtr"
-        aria-pressed="false"
-        aria-controls="cardGrid"
-      >港鐵</button>
-
-      <button
-        class="filter-button"
-        type="button"
-        data-filter="gmb"
-        aria-pressed="false"
-        aria-controls="cardGrid"
-      >專線小巴</button>
-
-      <button
-        class="filter-button"
-        type="button"
-        data-filter="ctb"
-        aria-pressed="false"
-        aria-controls="cardGrid"
-      >巴士</button>
-    </nav>
+      aria-atomic="true"
+    ></p>
   </header>
 
-  <main>
-    <div id="cardGrid" class="card-grid"></div>
+  <main id="main">
+    <p id="networkNotice" class="network-notice" hidden>
+      目前離線，暫時保留上次預報。
+    </p>
+
+    <p id="fatalError" class="fatal-error" role="alert" hidden></p>
+
+    <div id="clinics"></div>
 
     <noscript>
-      <p class="noscript-message">
-        請啟用 JavaScript，以查看即時到站資料。
-      </p>
+      <p class="fatal-error">請啟用 JavaScript。</p>
     </noscript>
   </main>
 
-  <!--
-    全部交通工具共用一個卡片 template。
-    API 文字只會經 textContent 寫入，唔會當成 HTML。
-  -->
   <template id="cardTemplate">
     <article class="eta-card">
-      <div class="mtr-track" data-role="track" aria-hidden="true" hidden>
-        <span class="mtr-track__dot"></span>
-        <span class="mtr-track__line"></span>
-        <span class="mtr-track__dot"></span>
+      <p class="step" data-role="step"></p>
+      <div class="card-line" data-role="line"></div>
+      <h5 class="stop-name" data-role="title"></h5>
+      <p class="direction" data-role="direction"></p>
+      <p class="platform" data-role="platform" hidden></p>
+      <p class="next" data-role="next" hidden></p>
+      <p class="status" data-role="status" hidden></p>
+
+      <div class="picker" data-role="picker" hidden>
+        <label data-role="pickerLabel">確認上車站</label>
+        <select data-role="select"></select>
       </div>
 
-      <div class="card-content">
-        <div class="route-badge" data-role="badge"></div>
-
-        <h2 class="stop-name" data-role="title"></h2>
-
-        <div class="line-label" data-role="line" hidden></div>
-
-        <p class="direction" data-role="direction">載入中…</p>
-        <p class="next-arrivals" data-role="next"></p>
-        <p class="card-status" data-role="status"></p>
-        <p class="card-updated" data-role="updated"></p>
-
-        <div class="countdown" data-role="countdown">--:--</div>
-      </div>
+      <div class="countdown" data-role="countdown">--:--</div>
     </article>
   </template>
 
   <script>
     "use strict";
 
-    // =========================================================
-    // 1. 設定
-    //
-    // 日常維護通常只需要改呢一節：
-    // - SETTINGS：更新時間、逾時、過期規則
-    // - MTR_LINES：港鐵路綫名稱及顏色
-    // - ROUTES：顯示邊啲卡片
-    // =========================================================
+    // ======================================================
+    // 設定
+    // ======================================================
 
     const SETTINGS = {
-      refreshMs: 15_000,
-      requestTimeoutMs: 8_000,
-      staleAfterMs: 70_000,
-
-      // 預計到站時間過咗 20 秒，就唔再當成當前班次。
-      arrivalGraceMs: 20_000,
-
-      // 同站同線嘅請求可共用短暫快取。
-      etaCacheMs: 10_000,
-
-      // 路線／站點資料變動較少，另外快取。
-      metadataCacheMs: 24 * 60 * 60 * 1000,
-
-      filterStorageKey: "eta-filter-pref",
-      timeZone: "Asia/Hong_Kong"
+      refreshMs: 15000,
+      timeoutMs: 8000,
+      staleMs: 70000,
+      sourceStaleMs: 120000,
+      futureToleranceMs: 60000,
+      arrivalGraceMs: 20000,
+      etaCacheMs: 10000,
+      metadataCacheMs: 6 * 60 * 60 * 1000,
+      maxRequests: 6,
+      clinicStorage: "ray-eta-clinic-v3",
+      stopStorage: "ray-eta-stops-v3"
     };
 
-    const MTR_LINES = {
+    const LINES = {
       KTL: { name: "觀塘綫", color: "#00a040" },
       TML: { name: "屯馬綫", color: "#9a3b26" },
-      ISL: { name: "港島綫", color: "#0075c2" },
-      TWL: { name: "荃灣綫", color: "#e2231a" },
       EAL: { name: "東鐵綫", color: "#5eb7e8" },
-      SIL: { name: "南港島綫", color: "#b5bd00" },
-      TCL: { name: "東涌綫", color: "#f7943e" },
-      AEL: { name: "機場快綫", color: "#00888a" },
-      TKL: { name: "將軍澳綫", color: "#a35eb5" }
+      TWL: { name: "荃灣綫", color: "#e2231a" },
+      TKL: { name: "將軍澳綫", color: "#a35eb5" },
+      ISL: { name: "港島綫", color: "#0075c2" }
     };
 
-    // 用作顯示每班港鐵嘅實際終點站。
-    // 遇到未列出嘅站碼，會直接顯示站碼，唔會亂估。
-    const MTR_DESTINATIONS = {
+    const STATIONS = {
+      DIH: "鑽石山",
+      HEO: "恒安",
+      HUH: "紅磡",
+      ADM: "金鐘",
+      MOK: "旺角",
+      CAB: "銅鑼灣",
+      YAT: "油塘",
+      NOP: "北角",
+      QUB: "鰂魚涌"
+    };
+
+    const DESTINATIONS = {
       WHA: "黃埔",
       TIK: "調景嶺",
       TUM: "屯門",
@@ -553,961 +532,1609 @@
       NOP: "北角",
       POA: "寶琳",
       LHP: "康城",
-      HOM: "何文田"
+      HOM: "何文田",
+      TSW: "荃灣",
+      CEN: "中環",
+      ADM: "金鐘",
+      LOW: "羅湖",
+      LMC: "落馬洲",
+      MKK: "旺角東",
+      SHT: "沙田",
+      TAP: "大埔墟",
+      FOT: "火炭",
+      SHS: "上水"
     };
 
-    /*
-      每張卡需要一個獨立 id。
+    const DIRECTIONS = {
+      KTL: { UP: "調景嶺", DOWN: "黃埔" },
+      TML: { UP: "屯門", DOWN: "烏溪沙" },
+      EAL: { UP: "羅湖／落馬洲", DOWN: "金鐘" },
+      TWL: { UP: "荃灣", DOWN: "中環" },
+      TKL: { UP: "寶琳／康城", DOWN: "北角" },
+      ISL: { UP: "柴灣", DOWN: "堅尼地城" }
+    };
 
-      MTR:
-        line、station、directionKey、directionLabel
+    // 每個實際預報只取得一次。
+    // 相同預報可出現在多間診所／不同路線。
+    const LEGS = new Map();
 
-      CTB:
-        route、stop
-        如需指定方向，可加 direction: "O" 或 "I"
+    function m(line, station, direction) {
+      const id = `mtr-${line}-${station}-${direction}`;
 
-      GMB:
-        region、route、stopMatch、occurrence
-        建議確認後加 direction: 1 或 2
-        如同一路線有多個 route_id，可再加 routeId 縮窄範圍。
+      if (!LEGS.has(id)) {
+        LEGS.set(id, {
+          id,
+          type: "mtr",
+          line,
+          station,
+          direction,
+          title: STATIONS[station],
+          directionLabel: `往 ${DIRECTIONS[line][direction]}`
+        });
+      }
 
-      注意：
-      港鐵 UP / DOWN 係 API 方向代碼，
-      唔應單靠字面理解為一般地理方向。
-    */
-    const ROUTES = [
-      {
-        id: "mtr-dih-ktl-down",
-        type: "mtr",
-        title: "鑽石山",
-        line: "KTL",
-        station: "DIH",
-        directionKey: "DOWN",
-        directionLabel: "黃埔方向"
-      },
-      {
-        id: "mtr-dih-ktl-up",
-        type: "mtr",
-        title: "鑽石山",
-        line: "KTL",
-        station: "DIH",
-        directionKey: "UP",
-        directionLabel: "調景嶺方向"
-      },
-      {
-        id: "mtr-dih-tml-up",
-        type: "mtr",
-        title: "鑽石山",
-        line: "TML",
-        station: "DIH",
-        directionKey: "UP",
-        directionLabel: "屯門方向"
-      },
-      {
-        id: "mtr-dih-tml-down",
-        type: "mtr",
-        title: "鑽石山",
-        line: "TML",
-        station: "DIH",
-        directionKey: "DOWN",
-        directionLabel: "烏溪沙方向"
-      },
-      {
-        id: "mtr-cab-isl-down",
-        type: "mtr",
-        title: "銅鑼灣",
-        line: "ISL",
-        station: "CAB",
-        directionKey: "DOWN",
-        directionLabel: "堅尼地城方向"
-      },
-      {
-        id: "mtr-cab-isl-up",
-        type: "mtr",
-        title: "銅鑼灣",
-        line: "ISL",
-        station: "CAB",
-        directionKey: "UP",
-        directionLabel: "柴灣方向"
-      },
-      {
-        id: "mtr-nop-tkl-up",
-        type: "mtr",
-        title: "北角",
-        line: "TKL",
-        station: "NOP",
-        directionKey: "UP",
-        directionLabel: "寶琳／康城方向"
-      },
-      {
-        id: "mtr-qub-tkl-up",
-        type: "mtr",
-        title: "鰂魚涌",
-        line: "TKL",
-        station: "QUB",
-        directionKey: "UP",
-        directionLabel: "寶琳／康城方向"
-      },
-      {
-        id: "mtr-yat-tkl-down",
-        type: "mtr",
-        title: "油塘",
-        line: "TKL",
-        station: "YAT",
-        directionKey: "DOWN",
-        directionLabel: "北角方向"
-      },
-      {
-        id: "mtr-yat-ktl-up",
-        type: "mtr",
-        title: "油塘",
-        line: "KTL",
-        station: "YAT",
-        directionKey: "DOWN",
-        directionLabel: "黃埔方向"
-      },
+      return id;
+    }
 
-      {
-        id: "ctb-15-002506",
+    function bus(route, bound) {
+      const id = `ctb-${route}-${bound}`;
+
+      LEGS.set(id, {
+        id,
         type: "ctb",
-        title: "寶雲道，司徒拔道",
-        route: "15",
-        stop: "002506"
-      },
-      {
-        id: "ctb-15-001136",
-        type: "ctb",
-        title: "金鐘 - 金鐘花園，金鐘道",
-        route: "15",
-        stop: "001136"
-      },
-      {
-        id: "ctb-6-002506",
-        type: "ctb",
-        title: "寶雲道，司徒拔道",
-        route: "6",
-        stop: "002506"
-      },
-      {
-        id: "ctb-6-001136",
-        type: "ctb",
-        title: "金鐘 - 金鐘花園，金鐘道",
-        route: "6",
-        stop: "001136"
-      },
+        route,
+        bound,
 
-      {
-        id: "gmb-26-hospital",
+        // O：金鐘上山；I：醫院附近落山。
+        // 上山保留原本提供嘅金鐘站碼。
+        // 落山由官方路線站序取得，唔估站碼。
+        fixedStop: bound === "O" ? "001136" : null,
+        stopTerms: bound === "I"
+          ? ["寶雲道", "港安醫院"]
+          : [],
+
+        title: bound === "O"
+          ? "金鐘花園，金鐘道"
+          : "寶雲道，司徒拔道",
+
+        directionLabel: bound === "O"
+          ? `往 ${route === "6" ? "赤柱" : "山頂"} · 港安落車`
+          : "往中環 · 金鐘落車"
+      });
+
+      return id;
+    }
+
+    function minibus(id, title, stopMatch, directionLabel) {
+      LEGS.set(id, {
+        id,
         type: "gmb",
-        title: "港安醫院",
         region: "HKI",
         route: "26",
-        stopMatch: "港安醫院",
-        occurrence: 1
+        title,
+        stopMatch,
+        directionLabel
+      });
+
+      return id;
+    }
+
+    const BUS6_OUT = bus("6", "O");
+    const BUS15_OUT = bus("15", "O");
+    const BUS6_BACK = bus("6", "I");
+    const BUS15_BACK = bus("15", "I");
+
+    const GMB_OUT = minibus(
+      "gmb26-out",
+      "鳳鳴大廈外",
+      "鳳鳴大廈",
+      "往司徒拔道 · 港安落車"
+    );
+
+    const GMB_BACK = minibus(
+      "gmb26-back",
+      "港安醫院",
+      "港安醫院",
+      "往銅鑼灣"
+    );
+
+    function path(name, description, stages) {
+      return {
+        name,
+        description,
+        // 一個 stage 可以有多個可選車次，例如 6／15。
+        stages: stages.map(stage =>
+          Array.isArray(stage) ? stage : [stage]
+        )
+      };
+    }
+
+    const CWB_OUT = [
+      path(
+        "經紅磡、金鐘",
+        "鑽石山 → 紅磡 → 金鐘 → 銅鑼灣",
+        [
+          m("TML", "DIH", "UP"),
+          m("EAL", "HUH", "DOWN"),
+          m("ISL", "ADM", "UP")
+        ]
+      ),
+      path(
+        "經旺角、金鐘",
+        "鑽石山 → 旺角 → 金鐘 → 銅鑼灣",
+        [
+          m("KTL", "DIH", "DOWN"),
+          m("TWL", "MOK", "DOWN"),
+          m("ISL", "ADM", "UP")
+        ]
+      ),
+      path(
+        "經油塘、北角",
+        "鑽石山 → 油塘 → 北角 → 銅鑼灣",
+        [
+          m("KTL", "DIH", "UP"),
+          m("TKL", "YAT", "DOWN"),
+          m("ISL", "NOP", "DOWN")
+        ]
+      )
+    ];
+
+    const CWB_BACK = [
+      path(
+        "經金鐘、紅磡",
+        "銅鑼灣 → 金鐘 → 紅磡 → 鑽石山",
+        [
+          m("ISL", "CAB", "DOWN"),
+          m("EAL", "ADM", "UP"),
+          m("TML", "HUH", "DOWN")
+        ]
+      ),
+      path(
+        "經金鐘、旺角",
+        "銅鑼灣 → 金鐘 → 旺角 → 鑽石山",
+        [
+          m("ISL", "CAB", "DOWN"),
+          m("TWL", "ADM", "UP"),
+          m("KTL", "MOK", "UP")
+        ]
+      ),
+      path(
+        "經北角、油塘",
+        "銅鑼灣 → 北角 → 油塘 → 鑽石山",
+        [
+          m("ISL", "CAB", "UP"),
+          m("TKL", "NOP", "UP"),
+          m("KTL", "YAT", "DOWN")
+        ]
+      )
+    ];
+
+    const CLINICS = [
+      {
+        id: "hengon",
+        name: "恒安",
+        out: [
+          path(
+            "屯馬綫直達",
+            "鑽石山 → 恒安",
+            [m("TML", "DIH", "DOWN")]
+          )
+        ],
+        back: [
+          path(
+            "屯馬綫直達",
+            "恒安 → 鑽石山",
+            [m("TML", "HEO", "UP")]
+          )
+        ]
       },
       {
-        id: "gmb-26-fung-ming",
-        type: "gmb",
-        title: "鳳鳴大廈外",
-        region: "HKI",
-        route: "26",
-        stopMatch: "鳳鳴大廈",
-        occurrence: 1
+        id: "causeway",
+        name: "銅鑼灣",
+        out: CWB_OUT,
+        back: CWB_BACK
+      },
+      {
+        id: "quarry",
+        name: "鰂魚涌",
+        out: [
+          path(
+            "經油塘",
+            "鑽石山 → 油塘 → 鰂魚涌",
+            [
+              m("KTL", "DIH", "UP"),
+              m("TKL", "YAT", "DOWN")
+            ]
+          )
+        ],
+        back: [
+          path(
+            "經油塘",
+            "鰂魚涌 → 油塘 → 鑽石山",
+            [
+              m("TKL", "QUB", "UP"),
+              m("KTL", "YAT", "DOWN")
+            ]
+          )
+        ]
+      },
+{
+        id: "mongkok",
+        name: "旺角雅蘭中心",
+        out: [
+          path(
+            "觀塘綫直達",
+            "鑽石山 → 旺角",
+            [m("KTL", "DIH", "DOWN")]
+          )
+        ],
+        back: [
+          path(
+            "觀塘綫直達",
+            "旺角 → 鑽石山",
+            [m("KTL", "MOK", "UP")]
+          )
+        ]
+      },
+      {
+        id: "hospital",
+        name: "司徒拔道港安醫院",
+        out: [
+          path(
+            "經紅磡、金鐘 · 6／15 號",
+            "鑽石山 → 紅磡 → 金鐘 → 港安；最後兩張係同站二選一",
+            [
+              m("TML", "DIH", "UP"),
+              m("EAL", "HUH", "DOWN"),
+              [BUS6_OUT, BUS15_OUT]
+            ]
+          ),
+          path(
+            "經旺角、金鐘 · 6／15 號",
+            "鑽石山 → 旺角 → 金鐘 → 港安；最後兩張係同站二選一",
+            [
+              m("KTL", "DIH", "DOWN"),
+              m("TWL", "MOK", "DOWN"),
+              [BUS6_OUT, BUS15_OUT]
+            ]
+          ),
+          path(
+            "經油塘、北角、銅鑼灣 · 26 號",
+            "鑽石山 → 油塘 → 北角 → 銅鑼灣 → 港安",
+            [
+              m("KTL", "DIH", "UP"),
+              m("TKL", "YAT", "DOWN"),
+              m("ISL", "NOP", "DOWN"),
+              GMB_OUT
+            ]
+          )
+        ],
+        back: [
+          path(
+            "6／15 號 · 經金鐘、紅磡",
+            "港安 → 金鐘 → 紅磡 → 鑽石山；頭兩張係同站二選一",
+            [
+              [BUS6_BACK, BUS15_BACK],
+              m("EAL", "ADM", "UP"),
+              m("TML", "HUH", "DOWN")
+            ]
+          ),
+          path(
+            "6／15 號 · 經金鐘、旺角",
+            "港安 → 金鐘 → 旺角 → 鑽石山；頭兩張係同站二選一",
+            [
+              [BUS6_BACK, BUS15_BACK],
+              m("TWL", "ADM", "UP"),
+              m("KTL", "MOK", "UP")
+            ]
+          ),
+          path(
+            "26 號 · 經銅鑼灣、北角、油塘",
+            "港安 → 銅鑼灣 → 北角 → 油塘 → 鑽石山",
+            [
+              GMB_BACK,
+              m("ISL", "CAB", "UP"),
+              m("TKL", "NOP", "UP"),
+              m("KTL", "YAT", "DOWN")
+            ]
+          )
+        ]
       }
     ];
 
-    // =========================================================
-    // 2. 共用工具
-    // =========================================================
+    // ======================================================
+    // 工具及儲存
+    // ======================================================
 
-    const timeFormatter = new Intl.DateTimeFormat("en-GB", {
-      timeZone: SETTINGS.timeZone,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    });
+    const $ = id => document.getElementById(id);
+    const views = new Map();
+    const states = new Map();
+    const clinicElements = new Map();
+    let cardSerial = 0;
 
-    function formatTime(timestamp) {
-      return timeFormatter.format(new Date(timestamp));
-    }
+    const app = {
+      filter: "all",
+      refreshing: false,
+      offline: navigator.onLine === false,
+      nextAt: Date.now(),
+      queued: false,
+      queuedForce: false
+    };
 
-    function parseTimestamp(value) {
-      if (typeof value !== "string" || !value.trim()) {
-        return null;
+    function text(element, value) {
+      const next = String(value ?? "");
+      if (element.textContent !== next) {
+        element.textContent = next;
       }
-
-      let text = value.trim();
-
-      // 港鐵格式冇附時區，明確補上香港 UTC+8。
-      if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(text)) {
-        text = text.replace(" ", "T") + "+08:00";
-      }
-
-      const timestamp = Date.parse(text);
-
-      return Number.isFinite(timestamp) ? timestamp : null;
     }
 
-    function secondsUntil(timestamp, now) {
-      return Math.max(0, Math.ceil((timestamp - now) / 1000));
+    function optional(element, value) {
+      text(element, value);
+      element.hidden = !value;
     }
 
-    function formatCountdown(seconds) {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = String(seconds % 60).padStart(2, "0");
-
-      return `${minutes}:${remainingSeconds}`;
+    function clean(value) {
+      return typeof value === "string" ? value.trim() : "";
     }
 
-    function destinationName(code) {
-      return MTR_DESTINATIONS[code] || code || "";
+    function messages(values) {
+      return [...new Set(values.filter(Boolean))].join("；");
     }
 
-    function readSavedFilter() {
+    function errorText(error) {
+      return error instanceof Error ? error.message : "未能取得資料";
+    }
+
+    function readStorage(key, fallback) {
       try {
-        return localStorage.getItem(SETTINGS.filterStorageKey) || "all";
+        return localStorage.getItem(key) ?? fallback;
       } catch {
-        return "all";
+        return fallback;
       }
     }
 
-    function saveFilter(value) {
+    function writeStorage(key, value) {
       try {
-        localStorage.setItem(SETTINGS.filterStorageKey, value);
+        localStorage.setItem(key, value);
       } catch {
-        // 私隱模式或儲存空間受限制，都唔影響主要功能。
+        // 不可儲存時，本次開頁仍可正常使用。
       }
     }
 
-    /*
-      統一整理到站資料：
-      {
-        time: Unix timestamp，毫秒
-        destination: 個別班次終點站，可留空
+    function loadPreferences() {
+      try {
+        const value = JSON.parse(
+          readStorage(SETTINGS.stopStorage, "{}")
+        );
+        return value && typeof value === "object" &&
+          !Array.isArray(value) ? value : {};
+      } catch {
+        return {};
+      }
+    }
+
+    const preferences = loadPreferences();
+
+    function saveChoice(id, token) {
+      if (token) {
+        preferences[id] = token;
+      } else {
+        delete preferences[id];
+      }
+      writeStorage(
+        SETTINGS.stopStorage,
+        JSON.stringify(preferences)
+      );
+    }
+
+    function timestamp(value) {
+      if (typeof value !== "string") return null;
+      let s = value.trim();
+      if (!s || s === "-") return null;
+
+      if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(s)) {
+        s = s.replace(" ", "T") + "+08:00";
       }
 
-      空陣列代表「成功查詢，但暫無預報」。
-      有非空時間但全部格式無效，則視為資料格式錯誤。
-    */
-    function normalizeArrivals(items) {
-      const supplied = items.filter(item => item.time != null && item.time !== "");
+      const result = Date.parse(s);
+      return Number.isFinite(result) ? result : null;
+    }
 
-      const arrivals = supplied
-        .map(item => ({
-          time: parseTimestamp(item.time),
-          destination: item.destination || ""
-        }))
-        .filter(item => item.time !== null)
+    function firstTime(...values) {
+      for (const value of values) {
+        const t = timestamp(value);
+        if (t !== null) return t;
+      }
+      return null;
+    }
+
+    function latestTime(values) {
+      const valid = values.map(timestamp).filter(t => t !== null);
+      return valid.length ? Math.max(...valid) : null;
+    }
+
+    function secondsTo(time, now) {
+      return Math.max(0, Math.ceil((time - now) / 1000));
+    }
+
+    function countdown(seconds) {
+      return `${Math.floor(seconds / 60)}:${String(
+        seconds % 60
+      ).padStart(2, "0")}`;
+    }
+
+    function normalize(items) {
+      if (!Array.isArray(items)) {
+        throw new Error("預報格式錯誤");
+      }
+
+      const supplied = items.filter(item =>
+        item && item.time != null && item.time !== ""
+      );
+
+      const arrivals = supplied.map(item => ({
+        time: timestamp(item.time),
+        destination: clean(item.destination),
+        platform: item.platform != null
+          ? String(item.platform) : ""
+      })).filter(item => item.time !== null)
         .sort((a, b) => a.time - b.time);
 
-      if (supplied.length > 0 && arrivals.length === 0) {
-        throw new Error("到站時間格式無效");
+      if (supplied.length && !arrivals.length) {
+        throw new Error("預報時間格式錯誤");
       }
 
-      return arrivals.slice(0, 3);
+      return {
+        arrivals,
+        warning: arrivals.length < supplied.length
+          ? "部分預報無效，已略過" : ""
+      };
     }
 
-    // =========================================================
-    // 3. HTTP 及快取
-    //
-    // 同一 URL：
-    // - 有進行中請求：共用 Promise
-    // - 快取仍有效：直接使用
-    // - 請求失敗：唔保留失敗 Promise
-    // =========================================================
+    function emptyState() {
+      return {
+        arrivals: [],
+        receivedAt: null,
+        sourceAt: null,
+        direction: "",
+        notice: "",
+        warning: "",
+        emptyMessage: "暫無預報",
+        error: "",
+        needsSelection: false,
+        selectionMessage: "",
+        choices: [],
+        selected: ""
+      };
+    }
 
-    const responseCache = new Map();
-    const pendingRequests = new Map();
+    class SelectionRequired extends Error {}
 
-    async function fetchJson(url) {
+    // ======================================================
+    // 請求共用、快取及同時請求限制
+    // ======================================================
+
+    const cache = new Map();
+    const pending = new Map();
+    const requestQueue = [];
+    let runningRequests = 0;
+
+    function pumpQueue() {
+      while (
+        runningRequests < SETTINGS.maxRequests &&
+        requestQueue.length
+      ) {
+        const job = requestQueue.shift();
+        runningRequests++;
+
+        Promise.resolve()
+          .then(job.task)
+          .then(job.resolve, job.reject)
+          .finally(() => {
+            runningRequests--;
+            pumpQueue();
+          });
+      }
+    }
+
+    function schedule(task) {
+      return new Promise((resolve, reject) => {
+        requestQueue.push({ task, resolve, reject });
+        pumpQueue();
+      });
+    }
+
+    async function fetchJSON(url) {
       const controller = new AbortController();
-
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        SETTINGS.requestTimeoutMs
+      const timer = setTimeout(
+        () => controller.abort(), SETTINGS.timeoutMs
       );
 
       try {
         const response = await fetch(url, {
           signal: controller.signal,
-          cache: "no-store"
+          cache: "no-store",
+          credentials: "omit"
         });
 
         if (!response.ok) {
-          throw new Error(`伺服器錯誤 (${response.status})`);
+          throw new Error(`服務暫不可用（${response.status}）`);
         }
 
-        // 等埋 JSON 讀取先清除 timeout。
         return await response.json();
       } catch (error) {
-        if (error.name === "AbortError") {
-          throw new Error("請求逾時");
+        if (error?.name === "AbortError") {
+          throw new Error("連線逾時");
         }
-
         if (error instanceof SyntaxError) {
-          throw new Error("伺服器資料格式錯誤");
+          throw new Error("回應格式錯誤");
         }
-
-        if (error instanceof TypeError) {
-          throw new Error("連線失敗，請檢查網絡或跨來源限制");
-        }
-
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    }
-
-    async function getJson(url, { ttl = 0, force = false } = {}) {
-      if (pendingRequests.has(url)) {
-        return pendingRequests.get(url);
-      }
-
-      const cached = responseCache.get(url);
-
-      if (!force && cached && Date.now() < cached.expiresAt) {
-        return cached.data;
-      }
-
-      const request = (async () => {
-        try {
-          const data = await fetchJson(url);
-
-          responseCache.set(url, {
-            data,
-            expiresAt: Date.now() + ttl
+if (error instanceof TypeError) {
+          console.error("API 連線失敗", {
+            url,
+            pageOrigin: location.origin,
+            pageProtocol: location.protocol,
+            error
           });
 
-          return data;
-        } finally {
-          pendingRequests.delete(url);
+          throw new Error("未能連線（請檢查網絡或跨域限制）");
         }
-      })();
-
-      pendingRequests.set(url, request);
-
-      return request;
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
     }
 
-    // =========================================================
-    // 4. API 資料轉換
-    //
-    // 每個資料源都回傳相同格式：
-    // {
-    //   direction: "往 ...",
-    //   arrivals: [{ time, destination }]
-    // }
-    //
-    // 畫面層唔需要知道各個 API 嘅原始格式。
-    // =========================================================
+    function getJSON(url, ttl = 0, force = false) {
+      if (pending.has(url)) return pending.get(url);
 
-    async function fetchMtrEta(config, force) {
-      const stationKey = `${config.line}-${config.station}`;
+      const stored = cache.get(url);
+      if (!force && stored && Date.now() < stored.expiresAt) {
+        return Promise.resolve(stored.packet);
+      }
 
+      const promise = schedule(() => fetchJSON(url))
+        .then(data => {
+          const packet = { data, receivedAt: Date.now() };
+          cache.set(url, {
+            packet,
+            expiresAt: packet.receivedAt + ttl
+          });
+          return packet;
+        })
+        .finally(() => pending.delete(url));
+
+      pending.set(url, promise);
+      return promise;
+    }
+
+    // ======================================================
+    // 港鐵
+    // ======================================================
+
+    async function fetchMTR(config, force) {
       const url =
         "https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php" +
         `?line=${encodeURIComponent(config.line)}` +
-        `&sta=${encodeURIComponent(config.station)}` +
-        "&lang=TC";
+        `&sta=${encodeURIComponent(config.station)}&lang=TC`;
 
-      const json = await getJson(url, {
-        ttl: SETTINGS.etaCacheMs,
-        force
-      });
+      const packet = await getJSON(
+        url, SETTINGS.etaCacheMs, force
+      );
+
+      const json = packet.data;
+      if (!json || typeof json !== "object") {
+        throw new Error("港鐵回應格式錯誤");
+      }
+
+      const delayed = String(json.isdelay).toUpperCase() === "Y";
+
+      if (Number(json.status) === 0) {
+        return {
+          arrivals: [],
+          direction: config.directionLabel,
+          receivedAt: packet.receivedAt,
+          sourceAt: firstTime(
+            json.curr_time, json.cur_time, json.sys_time
+          ),
+          warning: clean(json.message) || "港鐵服務安排有變",
+          emptyMessage: "服務安排有變"
+        };
+      }
 
       if (Number(json.status) !== 1) {
-        throw new Error(json.message || "港鐵服務資料暫不可用");
+        throw new Error(clean(json.message) || "港鐵暫無資料");
       }
 
-      const stationData = json.data?.[stationKey];
+      const station = json.data?.[
+        `${config.line}-${config.station}`
+      ];
 
-      if (!stationData) {
-        throw new Error("未收到車站資料");
+      if (!station || typeof station !== "object") {
+        throw new Error(
+          delayed ? "港鐵延誤，暫無班次資料" : "未收到車站資料"
+        );
       }
 
-      const trains = stationData[config.directionKey] ?? [];
-
+      const trains = station[config.direction] ?? [];
       if (!Array.isArray(trains)) {
-        throw new Error("港鐵班次資料格式錯誤");
+        throw new Error("港鐵班次格式錯誤");
       }
+
+      const result = normalize(trains.map(train => ({
+        time: train?.time,
+        destination:
+          DESTINATIONS[train?.dest] || train?.dest || "",
+        platform: train?.plat
+      })));
 
       return {
+        arrivals: result.arrivals,
         direction: config.directionLabel,
-        arrivals: normalizeArrivals(
-          trains.map(train => ({
-            time: train.time,
-            destination: destinationName(train.dest)
-          }))
-        )
+        receivedAt: packet.receivedAt,
+        sourceAt: firstTime(
+          station.sys_time,
+          station.curr_time,
+          json.sys_time,
+          json.curr_time
+        ),
+        warning: messages([
+          delayed ? "港鐵服務延誤" : "",
+          result.warning
+        ]),
+        emptyMessage: delayed ? "服務延誤" : "暫無預報"
       };
     }
 
-    async function fetchCtbEta(config, force) {
-      const url =
-        "https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/" +
-        `${encodeURIComponent(config.stop)}/` +
-        encodeURIComponent(config.route);
+    // ======================================================
+    // 站點選擇：巴士／小巴
+    // ======================================================
 
-      const json = await getJson(url, {
-        ttl: SETTINGS.etaCacheMs,
-        force
-      });
+    function chooseStop(config, candidates) {
+      const state = states.get(config.id);
 
-      if (!Array.isArray(json.data)) {
-        throw new Error("巴士班次資料格式錯誤");
+      if (!candidates.length) {
+        throw new Error("搵唔到上車站");
       }
 
-      let rows = json.data;
+      state.choices = candidates;
 
-      if (config.direction) {
-        rows = rows.filter(row => row.dir === config.direction);
-      } else {
-        const directions = new Set(
-          rows.map(row => row.dir).filter(Boolean)
+      const saved = typeof preferences[config.id] === "string"
+        ? preferences[config.id] : "";
+
+      const match = candidates.find(item => item.token === saved);
+
+      if (saved && !match) {
+        saveChoice(config.id, "");
+        state.selected = "";
+        throw new SelectionRequired("上車站有變，請重新選擇");
+      }
+
+      if (match) {
+        state.selected = saved;
+        return match;
+      }
+
+      if (candidates.length === 1) {
+        state.selected = candidates[0].token;
+        return candidates[0];
+      }
+
+      state.selected = "";
+      throw new SelectionRequired("請確認上車站／方向");
+    }
+
+    // ======================================================
+    // 城巴
+    // ======================================================
+
+    const CTB_BASE =
+      "https://rt.data.gov.hk/v2/transport/citybus";
+
+    async function findBusStops(config) {
+
+const apiDirection =
+        config.bound === "O" ? "outbound" : "inbound";
+
+      const packet = await getJSON(
+        `${CTB_BASE}/route-stop/CTB/${config.route}/${apiDirection}`,
+        SETTINGS.metadataCacheMs
+      );
+
+      if (!Array.isArray(packet.data?.data)) {
+        throw new Error("巴士站序格式錯誤");
+      }
+
+      const rows = packet.data.data.filter(row =>
+        row && row.stop != null
+      );
+
+      if (config.fixedStop) {
+        const found = rows.filter(row =>
+          String(row.stop) === config.fixedStop
         );
 
-        // 避免將兩個相反方向嘅預報混埋同一張卡。
-        if (directions.size > 1) {
-          throw new Error("有多個方向，請喺設定指定 direction");
+        if (!found.length) {
+          throw new Error("金鐘上車站未能配對");
         }
+
+        return found.map(row => ({
+          token: `${row.stop}/${row.seq}`,
+          stop: String(row.stop),
+          seq: Number(row.seq),
+          label: `${config.title} · 站序 ${row.seq}`
+        }));
       }
 
-      const destination =
-        rows[0]?.dest_tc ||
-        rows[0]?.dest_en ||
-        config.destination ||
-        "";
+      // 由指定落山方向嘅官方站序尋找站名。
+      const details = await Promise.all(
+        rows.map(async row => {
+          const detail = await getJSON(
+            `${CTB_BASE}/stop/${encodeURIComponent(row.stop)}`,
+            SETTINGS.metadataCacheMs
+          );
+
+          const data = detail.data?.data;
+          if (!data || typeof data !== "object") {
+            throw new Error("巴士站名資料不完整");
+          }
+
+          return {
+            token: `${row.stop}/${row.seq}`,
+            stop: String(row.stop),
+            seq: Number(row.seq),
+            name: clean(data.name_tc),
+            label: `${clean(data.name_tc)} · 站序 ${row.seq}`
+          };
+        })
+      );
+
+      return details.filter(stop =>
+        config.stopTerms.some(term => stop.name.includes(term))
+      );
+    }
+
+    async function fetchCTB(config, force) {
+      const candidates = await findBusStops(config);
+      const stop = chooseStop(config, candidates);
+
+      const packet = await getJSON(
+        `${CTB_BASE}/eta/CTB/${stop.stop}/${config.route}`,
+        SETTINGS.etaCacheMs,
+        force
+      );
+
+      if (!Array.isArray(packet.data?.data)) {
+        throw new Error("巴士預報格式錯誤");
+      }
+
+      const rows = packet.data.data.filter(row =>
+        row &&
+        row.dir === config.bound &&
+        Number(row.seq) === stop.seq
+      );
+
+      const result = normalize(rows.map(row => ({
+        time: row.eta,
+        destination: row.dest_tc || row.dest_en || ""
+      })));
 
       return {
-        direction: destination ? `往 ${destination}` : "方向資料暫缺",
-        arrivals: normalizeArrivals(
-          rows.map(row => ({
-            time: row.eta,
-            destination: row.dest_tc || row.dest_en || ""
-          }))
-        )
+        arrivals: result.arrivals,
+        direction: config.directionLabel,
+        receivedAt: packet.receivedAt,
+        sourceAt:
+          latestTime(rows.map(row => row.data_timestamp)) ??
+          firstTime(packet.data.generated_timestamp),
+        warning: result.warning,
+        notice: messages(rows.map(row =>
+          clean(row.rmk_tc) || clean(row.rmk_en)
+        )),
+        emptyMessage: "暫無預報"
       };
     }
 
-    async function findGmbStop(config) {
-      const routeUrl =
-        "https://data.etagmb.gov.hk/route/" +
-        `${encodeURIComponent(config.region)}/` +
-        encodeURIComponent(config.route);
+    // ======================================================
+    // 專線小巴
+    // ======================================================
 
-      const json = await getJson(routeUrl, {
-        ttl: SETTINGS.metadataCacheMs
-      });
+    const GMB_BASE = "https://data.etagmb.gov.hk";
 
-      const routes = Array.isArray(json.data)
-        ? json.data
-        : json.data
-          ? [json.data]
-          : [];
+    async function findGmbStops(config) {
+      const packet = await getJSON(
+        `${GMB_BASE}/route/${config.region}/${config.route}`,
+        SETTINGS.metadataCacheMs
+      );
 
-      const tasks = [];
+      const raw = packet.data?.data;
+      const routes = Array.isArray(raw) ? raw :
+        raw && typeof raw === "object" ? [raw] : [];
+
+      if (!routes.length) {
+        throw new Error("未收到小巴路線資料");
+      }
+
+      const jobs = [];
 
       for (const route of routes) {
         if (
-          config.routeId != null &&
-          String(route.route_id) !== String(config.routeId)
+          route.route_id == null ||
+          !Array.isArray(route.directions)
         ) {
-          continue;
+          throw new Error("小巴路線格式錯誤");
         }
 
-        for (const direction of route.directions || []) {
-          if (
-            config.direction != null &&
-            Number(direction.route_seq) !== Number(config.direction)
-          ) {
-            continue;
+        for (const direction of route.directions) {
+          if (direction.route_seq == null) {
+            throw new Error("小巴方向格式錯誤");
           }
 
-          tasks.push((async () => {
-            const stopUrl =
-              "https://data.etagmb.gov.hk/route-stop/" +
-              `${encodeURIComponent(route.route_id)}/` +
-              encodeURIComponent(direction.route_seq);
+          jobs.push((async () => {
+            const stopsPacket = await getJSON(
+              `${GMB_BASE}/route-stop/` +
+              `${route.route_id}/${direction.route_seq}`,
+              SETTINGS.metadataCacheMs
+            );
 
-            const stopJson = await getJson(stopUrl, {
-              ttl: SETTINGS.metadataCacheMs
-            });
-
-            const stops = stopJson.data?.route_stops;
+            const stops = stopsPacket.data?.data?.route_stops;
 
             if (!Array.isArray(stops)) {
-              throw new Error("小巴站點資料格式錯誤");
+              throw new Error("小巴站序格式錯誤");
             }
 
-            return stops
-              .filter(stop => stop.name_tc?.includes(config.stopMatch))
-              .map(stop => ({
+            return stops.filter(stop =>
+              stop &&
+              stop.stop_seq != null &&
+              clean(stop.name_tc).includes(config.stopMatch)
+            ).map(stop => {
+              const origin = clean(direction.orig_tc);
+              const destination = clean(direction.dest_tc);
+
+              return {
+                token:
+                  `${route.route_id}/` +
+                  `${direction.route_seq}/${stop.stop_seq}`,
                 routeId: route.route_id,
                 routeSeq: direction.route_seq,
                 stopSeq: stop.stop_seq,
-                name: stop.name_tc,
-                destination: direction.dest_tc || ""
-              }));
+                label: messages([
+                  clean(stop.name_tc),
+                  destination ? `往 ${destination}` : "",
+                  origin ? `由 ${origin}` : "",
+                  `站序 ${stop.stop_seq}`
+                ])
+              };
+            });
           })());
         }
       }
 
-      const matches = (await Promise.all(tasks)).flat();
+      const settled = await Promise.allSettled(jobs);
+      const failed = settled.find(item => item.status === "rejected");
 
-      if (matches.length === 0) {
-        throw new Error(`搵唔到站名含「${config.stopMatch}」`);
+      // 唔將部分成功搜尋當成完整候選站點。
+      if (failed) throw failed.reason;
+
+      const unique = new Map();
+      for (const result of settled) {
+        for (const stop of result.value) {
+          unique.set(stop.token, stop);
+        }
       }
 
-      const occurrence = config.occurrence ?? 1;
-
-      if (!Number.isInteger(occurrence) || occurrence < 1) {
-        throw new Error("occurrence 必須係大於 0 嘅整數");
-      }
-
-      const match = matches[occurrence - 1];
-
-      if (!match) {
-        throw new Error(`只搵到 ${matches.length} 個相符站點`);
-      }
-
-      return match;
+      return [...unique.values()];
     }
 
-    async function fetchGmbEta(config, force) {
-      const stop = await findGmbStop(config);
+    async function fetchGMB(config, force) {
+      const candidates = await findGmbStops(config);
+      const stop = chooseStop(config, candidates);
 
-      const url =
-        "https://data.etagmb.gov.hk/eta/route-stop/" +
-        `${encodeURIComponent(stop.routeId)}/` +
-        `${encodeURIComponent(stop.routeSeq)}/` +
-        encodeURIComponent(stop.stopSeq);
-
-      const json = await getJson(url, {
-        ttl: SETTINGS.etaCacheMs,
+      const packet = await getJSON(
+        `${GMB_BASE}/eta/route-stop/` +
+        `${stop.routeId}/${stop.routeSeq}/${stop.stopSeq}`,
+        SETTINGS.etaCacheMs,
         force
-      });
+      );
 
-      const data = json.data;
+      const raw = packet.data?.data;
 
-      if (!data || Array.isArray(data)) {
-        throw new Error("小巴班次資料格式錯誤");
+      // 支援單一物件及包含站點物件嘅陣列。
+      const data = Array.isArray(raw)
+        ? raw.find(item =>
+            String(item.route_id) === String(stop.routeId) &&
+            Number(item.route_seq) === Number(stop.routeSeq) &&
+            Number(item.stop_seq) === Number(stop.stopSeq)
+          )
+        : raw;
+
+      if (!data || typeof data !== "object") {
+        throw new Error("小巴預報格式錯誤");
       }
 
+      const sourceAt = firstTime(
+        data.data_timestamp, packet.data.generated_timestamp
+      );
+
       if (data.enabled === false) {
-        throw new Error(data.description_tc || "到站預報暫停");
+        return {
+          arrivals: [],
+          direction: config.directionLabel,
+          receivedAt: packet.receivedAt,
+          sourceAt,
+          warning:
+            clean(data.description_tc) ||
+            clean(data.description_en) ||
+            "到站預報暫停",
+          emptyMessage: "預報暫停"
+        };
       }
 
       if (!Array.isArray(data.eta)) {
-        throw new Error("小巴到站預報格式錯誤");
+        throw new Error("小巴班次格式錯誤");
       }
 
-      const destination =
-        config.destination || stop.destination || stop.name;
+      const result = normalize(data.eta.map(item => ({
+        time: item?.timestamp,
+        destination: ""
+      })));
 
       return {
-        direction: `往 ${destination}`,
-        arrivals: normalizeArrivals(
-          data.eta.map(item => ({
-            time: item.timestamp,
-            destination
-          }))
-        )
+        arrivals: result.arrivals,
+        direction: config.directionLabel,
+        receivedAt: packet.receivedAt,
+        sourceAt,
+        warning: result.warning,
+        notice: messages(data.eta.map(item =>
+          clean(item?.remarks_tc) || clean(item?.remarks_en)
+        )),
+        emptyMessage: "暫無預報"
       };
     }
 
-    const ETA_PROVIDERS = {
-      mtr: fetchMtrEta,
-      ctb: fetchCtbEta,
-      gmb: fetchGmbEta
+    const PROVIDERS = {
+      mtr: fetchMTR,
+      ctb: fetchCTB,
+      gmb: fetchGMB
     };
 
-    // =========================================================
-    // 5. DOM 及應用程式狀態
-    // =========================================================
+    // ======================================================
+    // 建立畫面
+    // ======================================================
 
-    const elements = {
-      grid: document.getElementById("cardGrid"),
-      template: document.getElementById("cardTemplate"),
-      refreshButton: document.getElementById("refreshButton"),
-      refreshBar: document.getElementById("refreshBar"),
-      nextRefresh: document.getElementById("nextRefresh"),
-      refreshResult: document.getElementById("refreshResult"),
-      filterButtons: [...document.querySelectorAll("[data-filter]")]
-    };
+    function makeElement(tag, className, content = "") {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = content;
+      return element;
+    }
 
-    // DOM references 同資料狀態分開儲存。
-    const cardViews = new Map();
-    const cardStates = new Map();
-
-    const appState = {
-      isRefreshing: false,
-      nextRefreshAt: Date.now(),
-      activeFilter: "all"
-    };
-
-    function createCard(config) {
-      const card = elements.template.content
+    function createCard(legId, stepNumber, alternative) {
+      const config = LEGS.get(legId);
+      const card = $("cardTemplate").content
         .firstElementChild.cloneNode(true);
 
-      card.id = config.id;
-      card.dataset.type = config.type;
-
-      const view = { card };
+      const view = { card, pickerSignature: "" };
 
       for (const element of card.querySelectorAll("[data-role]")) {
         view[element.dataset.role] = element;
       }
 
-      view.title.textContent = config.title;
-      view.title.id = `${config.id}-title`;
-
+      const serial = ++cardSerial;
+      view.title.id = `card-title-${serial}`;
       card.setAttribute("aria-labelledby", view.title.id);
 
+      text(view.step,
+        `${stepNumber === 1 ? "起點" : "轉車"} · 第 ${stepNumber} 段` +
+        (alternative ? " · 二選一" : "")
+      );
+
+      text(view.title, config.title);
+      text(view.direction, config.directionLabel);
+
       if (config.type === "mtr") {
-        const line = MTR_LINES[config.line] || {
-          name: config.line,
-          color: "#777777"
-        };
-
+        const line = LINES[config.line];
         card.style.setProperty("--line-color", line.color);
-
-        view.track.hidden = false;
-        view.line.hidden = false;
-        view.line.textContent = line.name;
-        view.badge.hidden = true;
+        text(view.line, line.name);
+      } else if (config.type === "ctb") {
+        card.style.setProperty("--line-color", "#f4c40f");
+        text(view.line, `城巴 ${config.route}`);
       } else {
-        view.badge.textContent = config.route;
+        card.style.setProperty("--line-color", "#35a454");
+        text(view.line, `專線小巴 ${config.route}`);
       }
 
-      cardViews.set(config.id, view);
+      view.select.id = `stop-picker-${serial}`;
+      view.pickerLabel.htmlFor = view.select.id;
 
-      cardStates.set(config.id, {
-        direction: config.directionLabel || "",
-        arrivals: [],
-        lastSuccessAt: null,
-        error: null
+      view.select.addEventListener("change", () => {
+        if (app.refreshing) return;
+
+        const state = states.get(legId);
+        const token = view.select.value;
+
+        if (token && !state.choices.some(item => item.token === token)) {
+          return;
+        }
+
+        saveChoice(legId, token);
+
+        const choices = state.choices;
+        Object.assign(state, emptyState(), {
+          choices,
+          selected: token,
+          needsSelection: !token,
+          selectionMessage: !token ? "請確認上車站／方向" : ""
+        });
+
+        renderLeg(legId);
+        void refresh(true);
       });
+
+      if (!views.has(legId)) views.set(legId, []);
+      views.get(legId).push(view);
 
       return card;
     }
 
-    // =========================================================
-    // 6. 畫面渲染
-    //
-    // 只更新文字／class，唔會每秒重新建立整張卡。
-    // lastSuccessAt 代表本頁成功接收資料嘅時間，
-    // 唔等於營辦商原始預報產生時間。
-    // =========================================================
+    function createCommute(clinic, direction) {
+      const out = direction === "out";
+      const section = makeElement("section", "commute");
+      const heading = makeElement("div", "commute-heading");
 
-    function renderCard(cardId, now = Date.now()) {
-      const view = cardViews.get(cardId);
-      const state = cardStates.get(cardId);
-
-      if (!view || !state) return;
-
-      const hasLoaded = state.lastSuccessAt !== null;
-
-      const isStale =
-        hasLoaded &&
-        now - state.lastSuccessAt > SETTINGS.staleAfterMs;
-
-      const hasWarning = Boolean(state.error) || isStale;
-
-      view.card.classList.toggle("has-warning", hasWarning);
-      view.countdown.classList.remove("is-soon", "is-message");
-
-      view.direction.textContent =
-        state.direction || (hasLoaded ? "方向資料暫缺" : "載入中…");
-
-      view.updated.textContent = hasLoaded
-        ? `接收於 ${formatTime(state.lastSuccessAt)} HKT`
-        : "";
-
-      view.status.textContent = state.error
-        ? hasLoaded
-          ? `⚠ 更新失敗，保留舊資料：${state.error}`
-          : `⚠ ${state.error}`
-        : isStale
-          ? "⚠ 已一段時間未成功更新"
-          : "";
-
-      // 第一次載入未完成，或者第一次請求已經失敗。
-      if (!hasLoaded) {
-        view.next.textContent = "";
-        view.countdown.textContent = "--:--";
-
-        if (state.error) {
-          view.direction.textContent = state.direction || "未能載入";
-        }
-
-        return;
-      }
-
-      // 成功回應但冇班次，唔應繼續保留上次嘅 ETA。
-      if (state.arrivals.length === 0) {
-        view.next.textContent = "";
-        view.countdown.textContent = "暫無預報";
-        view.countdown.classList.add("is-message");
-        return;
-      }
-
-      /*
-        正常資料容許短暫顯示「即將到站」。
-        如果更新失敗或資料過時，就唔將已過時預報當成即將到站。
-      */
-      const graceMs = hasWarning ? 0 : SETTINGS.arrivalGraceMs;
-
-      const upcoming = state.arrivals.filter(
-        arrival => arrival.time >= now - graceMs
+      heading.append(
+        makeElement(
+          "span",
+          `commute-tag ${out ? "out" : "back"}`,
+          out ? "返工" : "放工"
+        ),
+        makeElement(
+          "h3",
+          "",
+          out
+            ? `鑽石山 → ${clinic.name}`
+            : `${clinic.name} → 鑽石山`
+        )
       );
 
-      if (upcoming.length === 0) {
-        view.next.textContent = "";
-        view.countdown.textContent = hasWarning
-          ? "預報已失效"
-          : "等候更新";
+      section.appendChild(heading);
 
-        view.countdown.classList.add("is-message");
-        return;
-      }
+      for (const route of clinic[direction]) {
+        const block = makeElement("section", "path");
+        const header = makeElement("div", "path-header");
 
-      const [primary, ...following] = upcoming;
-      const seconds = secondsUntil(primary.time, now);
-
-      // 港鐵以個別列車終點站為準，避免支綫列車被標錯目的地。
-      view.direction.textContent = primary.destination
-        ? `往 ${primary.destination}`
-        : state.direction;
-
-      view.next.textContent = following.map(arrival => {
-        const minutes = Math.ceil(secondsUntil(arrival.time, now) / 60);
-
-        const destination =
-          arrival.destination &&
-          arrival.destination !== primary.destination
-            ? `（${arrival.destination}）`
-            : "";
-
-        return `${minutes} 分${destination}`;
-      }).join(" / ");
-
-      view.countdown.textContent = seconds === 0
-        ? "即將到站"
-        : formatCountdown(seconds);
-
-      view.countdown.classList.toggle("is-soon", seconds <= 60);
-      view.countdown.classList.toggle("is-message", seconds === 0);
-    }
-
-    function renderAllCards(now = Date.now()) {
-      for (const config of ROUTES) {
-        renderCard(config.id, now);
-      }
-    }
-
-    // =========================================================
-    // 7. 更新資料
-    //
-    // 單張卡失敗唔會阻止其他卡片。
-    // 回傳 true / false，畀整批更新顯示成功數量。
-    // =========================================================
-
-    async function refreshCard(config, force) {
-      const state = cardStates.get(config.id);
-
-      try {
-        const provider = ETA_PROVIDERS[config.type];
-
-        if (!provider) {
-          throw new Error(`未支援交通工具：${config.type}`);
-        }
-
-        const result = await provider(config, force);
-
-        state.direction = result.direction;
-        state.arrivals = result.arrivals;
-        state.lastSuccessAt = Date.now();
-        state.error = null;
-
-        renderCard(config.id);
-        return true;
-      } catch (error) {
-        // 保留上次成功資料，只加上錯誤狀態。
-        state.error = error.message || "未知錯誤";
-
-        renderCard(config.id);
-        return false;
-      }
-    }
-
-    async function refreshAll(force = false) {
-      if (appState.isRefreshing) return;
-
-      appState.isRefreshing = true;
-
-      elements.refreshButton.disabled = true;
-      elements.refreshButton.classList.add("is-loading");
-      elements.grid.setAttribute("aria-busy", "true");
-
-      updateRefreshIndicator();
-
-      try {
-        const results = await Promise.all(
-          ROUTES.map(config => refreshCard(config, force))
+        header.append(
+          makeElement("h4", "path-title", route.name),
+          makeElement("p", "path-description", route.description)
         );
 
-        const successCount = results.filter(Boolean).length;
-        const failureCount = results.length - successCount;
-        const completedAt = formatTime(Date.now());
+        const grid = makeElement("div", "legs");
 
-        elements.refreshResult.textContent = failureCount === 0
-          ? `最近完成：${completedAt} HKT · 全部成功`
-          : `最近完成：${completedAt} HKT · 成功 ${successCount}／失敗 ${failureCount}`;
-      } finally {
-        appState.isRefreshing = false;
+        route.stages.forEach((stage, index) => {
+          for (const legId of stage) {
+            grid.appendChild(
+              createCard(legId, index + 1, stage.length > 1)
+            );
+          }
+        });
 
-        // 用真實時間計下一輪，唔依賴 setInterval 執行次數。
-        appState.nextRefreshAt = Date.now() + SETTINGS.refreshMs;
+        block.append(header, grid);
+        section.appendChild(block);
+      }
 
-        elements.refreshButton.disabled = false;
-        elements.refreshButton.classList.remove("is-loading");
-        elements.grid.setAttribute("aria-busy", "false");
+      return section;
+    }
 
-        updateRefreshIndicator();
+    function buildPage() {
+      for (const [id] of LEGS) {
+        states.set(id, emptyState());
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      for (const clinic of CLINICS) {
+        const section = makeElement("section", "clinic");
+        const heading = makeElement("h2", "clinic-title", clinic.name);
+
+        heading.id = `clinic-title-${clinic.id}`;
+        section.setAttribute("aria-labelledby", heading.id);
+
+        section.append(
+          heading,
+          createCommute(clinic, "out"),
+          createCommute(clinic, "back")
+        );
+
+        clinicElements.set(clinic.id, section);
+        fragment.appendChild(section);
+      }
+
+      $("clinics").appendChild(fragment);
+    }
+
+    // ======================================================
+    // 渲染預報
+    // ======================================================
+
+    function renderPicker(view, state) {
+      view.picker.hidden = state.choices.length < 2 &&
+        !state.needsSelection;
+
+      if (view.picker.hidden) return;
+
+      const signature = JSON.stringify(
+        state.choices.map(item => [item.token, item.label])
+      );
+
+      if (signature !== view.pickerSignature) {
+        const fragment = document.createDocumentFragment();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "請選擇上車站／方向";
+        fragment.appendChild(placeholder);
+
+        for (const choice of state.choices) {
+          const option = document.createElement("option");
+          option.value = choice.token;
+          option.textContent = choice.label;
+          fragment.appendChild(option);
+        }
+
+        view.select.replaceChildren(fragment);
+        view.pickerSignature = signature;
+      }
+
+      if (view.select.value !== state.selected) {
+        view.select.value = state.selected;
+      }
+
+      view.select.disabled = app.refreshing;
+    }
+
+    function showMessage(view, message) {
+      text(view.countdown, message);
+      view.countdown.classList.add("is-message");
+      view.countdown.classList.remove("is-soon");
+    }
+
+    function renderLeg(id, now = Date.now()) {
+      const config = LEGS.get(id);
+      const state = states.get(id);
+      const cardViews = views.get(id) || [];
+
+      const loaded = state.receivedAt !== null;
+
+      const receiveStale = loaded &&
+        now - state.receivedAt > SETTINGS.staleMs;
+
+      const sourceStale = state.sourceAt !== null &&
+        now - state.sourceAt > SETTINGS.sourceStaleMs;
+
+      const clockWarning = state.sourceAt !== null &&
+        state.sourceAt - now > SETTINGS.futureToleranceMs;
+
+      const old = Boolean(state.error) || app.offline;
+
+      const grace = old ? 0 : SETTINGS.arrivalGraceMs;
+
+      const upcoming = state.arrivals
+        .filter(item => item.time >= now - grace)
+        .slice(0, 3);
+
+      const warning = Boolean(
+        state.error ||
+        state.warning ||
+        state.needsSelection ||
+        receiveStale ||
+        sourceStale ||
+        clockWarning ||
+        app.offline
+      );
+
+      const status = messages([
+        state.needsSelection ? state.selectionMessage : "",
+        state.error
+          ? `${loaded ? "更新失敗，保留上次預報：" : ""}${state.error}`
+          : "",
+        app.offline ? "目前離線" : "",
+        receiveStale ? "未收到新預報" : "",
+        sourceStale ? "來源資料過舊" : "",
+        clockWarning ? "請檢查裝置時間" : "",
+        state.warning,
+        state.notice
+      ]);
+
+      for (const view of cardViews) {
+        view.card.classList.toggle("has-warning", warning);
+        view.countdown.classList.remove("is-message", "is-soon");
+
+        text(view.direction, state.direction || config.directionLabel);
+        optional(view.platform, "");
+        optional(view.next, "");
+        optional(view.status, status);
+
+        renderPicker(view, state);
+
+        if (state.needsSelection) {
+          showMessage(view, "請選擇站點");
+          continue;
+        }
+
+        if (!loaded) {
+          if (app.offline || state.error) {
+            showMessage(view, app.offline ? "離線" : "未能載入");
+          } else {
+            text(view.countdown, "--:--");
+          }
+          continue;
+        }
+
+        if (receiveStale || sourceStale || clockWarning) {
+          showMessage(view, clockWarning ? "請檢查時間" : "資料已過期");
+          continue;
+        }
+
+        if (!state.arrivals.length) {
+          showMessage(view, state.emptyMessage);
+          continue;
+        }
+
+        if (!upcoming.length) {
+          showMessage(view, old ? "預報已失效" : "等候更新");
+          continue;
+        }
+
+        const [primary, ...following] = upcoming;
+
+        // 港鐵顯示實際列車目的地。
+        // 巴士保留「金鐘／港安落車」提示。
+        if (config.type === "mtr" && primary.destination) {
+          text(view.direction, `往 ${primary.destination}`);
+        }
+
+        optional(
+          view.platform,
+          primary.platform ? `${primary.platform} 號月台` : ""
+        );
+
+        optional(view.next, following.map(item => {
+          const minutes = Math.ceil(secondsTo(item.time, now) / 60);
+
+          const destination =
+            item.destination &&
+            item.destination !== primary.destination
+              ? `（${item.destination}）` : "";
+
+          const platform =
+            item.platform &&
+            item.platform !== primary.platform
+              ? `［${item.platform} 號月台］` : "";
+
+          return `${minutes} 分${destination}${platform}`;
+        }).join(" / "));
+
+        const seconds = secondsTo(primary.time, now);
+
+        if (seconds === 0) {
+          showMessage(view, "即將到站");
+          view.countdown.classList.add("is-soon");
+        } else {
+          text(view.countdown, countdown(seconds));
+          view.countdown.classList.toggle("is-soon", seconds <= 60);
+        }
       }
     }
 
-    // =========================================================
-    // 8. 更新排程
-    //
-    // 每秒重畫倒數。
-    // 自動更新以 nextRefreshAt 同 Date.now() 比較。
-    // 頁面隱藏期間暫停自動請求，返回時再檢查。
-    // =========================================================
+    function visibleLegs() {
+      const ids = new Set();
 
-    function updateRefreshIndicator(now = Date.now()) {
-      if (appState.isRefreshing) {
-        elements.nextRefresh.textContent = "更新中…";
-        elements.refreshBar.style.width = "100%";
+      for (const clinic of CLINICS) {
+        if (app.filter !== "all" && app.filter !== clinic.id) continue;
+
+        for (const direction of ["out", "back"]) {
+          for (const route of clinic[direction]) {
+            for (const stage of route.stages) {
+              for (const id of stage) ids.add(id);
+            }
+          }
+        }
+      }
+
+      return [...ids];
+    }
+
+    function renderVisible(now = Date.now()) {
+      for (const id of visibleLegs()) {
+        renderLeg(id, now);
+      }
+    }
+
+    // ======================================================
+    // 更新及排程
+    // ======================================================
+
+    async function refreshLeg(id, force) {
+      const config = LEGS.get(id);
+      const state = states.get(id);
+
+      try {
+        const result = await PROVIDERS[config.type](config, force);
+
+        Object.assign(state, {
+          arrivals: result.arrivals,
+          direction: result.direction || config.directionLabel,
+          receivedAt: result.receivedAt,
+          sourceAt: result.sourceAt ?? null,
+          notice: result.notice || "",
+          warning: result.warning || "",
+          emptyMessage: result.emptyMessage || "暫無預報",
+          error: "",
+          needsSelection: false,
+          selectionMessage: ""
+        });
+      } catch (error) {
+        if (error instanceof SelectionRequired) {
+          Object.assign(state, {
+            arrivals: [],
+            receivedAt: null,
+            sourceAt: null,
+            direction: config.directionLabel,
+            notice: "",
+            warning: "",
+            error: "",
+            needsSelection: true,
+            selectionMessage: error.message
+          });
+        } else {
+          state.error = errorText(error);
+        }
+      }
+
+      renderLeg(id);
+    }
+
+    function controls() {
+      $("refreshButton").disabled = app.refreshing || app.offline;
+
+      $("refreshButton").classList.toggle(
+        "is-loading", app.refreshing
+      );
+
+      $("refreshButton").setAttribute(
+        "aria-label",
+        app.refreshing ? "正在更新" : "即刻更新"
+      );
+
+      for (const list of views.values()) {
+        for (const view of list) {
+          view.select.disabled = app.refreshing;
+        }
+      }
+    }
+
+    function refreshIndicator(now = Date.now()) {
+      if (app.offline) {
+        text($("nextRefresh"), "離線");
+        $("refreshBar").style.width = "0%";
         return;
       }
 
-      const remainingMs = Math.max(0, appState.nextRefreshAt - now);
-      const seconds = Math.ceil(remainingMs / 1000);
+      if (app.refreshing) {
+        text($("nextRefresh"), "更新中…");
+        $("refreshBar").style.width = "100%";
+        return;
+      }
 
-      const percentage = Math.min(
-        100,
-        (remainingMs / SETTINGS.refreshMs) * 100
+      const remaining = Math.max(0, app.nextAt - now);
+
+      text(
+        $("nextRefresh"),
+        `下次更新：${Math.ceil(remaining / 1000)}s`
       );
 
-      elements.nextRefresh.textContent = `下次更新：${seconds}s`;
-      elements.refreshBar.style.width = `${percentage}%`;
+      $("refreshBar").style.width =
+        `${Math.min(100, remaining / SETTINGS.refreshMs * 100)}%`;
+    }
+
+    async function refresh(force = false) {
+      if (app.refreshing) {
+        app.queued = true;
+        app.queuedForce ||= force;
+        return;
+      }
+
+      if (app.offline || document.hidden) return;
+
+      app.refreshing = true;
+      const ids = visibleLegs();
+
+      controls();
+      refreshIndicator();
+      $("clinics").setAttribute("aria-busy", "true");
+
+      try {
+        await Promise.all(ids.map(id => refreshLeg(id, force)));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        app.refreshing = false;
+        app.nextAt = Date.now() + SETTINGS.refreshMs;
+
+        $("clinics").setAttribute("aria-busy", "false");
+        controls();
+        renderVisible();
+        refreshIndicator();
+
+        if (app.queued && !app.offline && !document.hidden) {
+          const nextForce = app.queuedForce;
+          app.queued = false;
+          app.queuedForce = false;
+          void refresh(nextForce);
+        }
+      }
     }
 
     function tick() {
       if (document.hidden) return;
 
       const now = Date.now();
+      renderVisible(now);
+      refreshIndicator(now);
 
-      renderAllCards(now);
-      updateRefreshIndicator(now);
+      if (app.refreshing || app.offline) return;
 
-      if (
-        !appState.isRefreshing &&
-        now >= appState.nextRefreshAt
-      ) {
-        void refreshAll();
+      if (app.queued) {
+        const force = app.queuedForce;
+        app.queued = false;
+        app.queuedForce = false;
+        void refresh(force);
+      } else if (now >= app.nextAt) {
+        void refresh();
       }
     }
 
-    // =========================================================
-    // 9. 分類篩選
-    // =========================================================
+    function updateNetwork() {
+      const wasOffline = app.offline;
+      app.offline = navigator.onLine === false;
 
-    function applyFilter(requestedFilter, persist = false) {
-      const allowedFilters = new Set(
-        elements.filterButtons.map(button => button.dataset.filter)
-      );
+      $("networkNotice").hidden = !app.offline;
+      controls();
+      renderVisible();
+      refreshIndicator();
 
-      const filter = allowedFilters.has(requestedFilter)
-        ? requestedFilter
-        : "all";
+      if (wasOffline && !app.offline) {
+        app.nextAt = Date.now();
+        void refresh(true);
+      }
+    }
 
-      appState.activeFilter = filter;
+    // ======================================================
+    // 診所切換
+    // ======================================================
 
-      for (const button of elements.filterButtons) {
+    function applyFilter(requested, persist = false) {
+      const valid = requested === "all" ||
+        CLINICS.some(clinic => clinic.id === requested);
+
+      app.filter = valid ? requested : "all";
+
+      for (const button of document.querySelectorAll("[data-clinic]")) {
         button.setAttribute(
           "aria-pressed",
-          String(button.dataset.filter === filter)
+          String(button.dataset.clinic === app.filter)
         );
       }
 
-      for (const config of ROUTES) {
-        const view = cardViews.get(config.id);
-
-        view.card.hidden =
-          filter !== "all" &&
-          config.type !== filter;
+      for (const clinic of CLINICS) {
+        clinicElements.get(clinic.id).hidden =
+          app.filter !== "all" && app.filter !== clinic.id;
       }
 
+      renderVisible();
+
       if (persist) {
-        saveFilter(filter);
+        writeStorage(SETTINGS.clinicStorage, app.filter);
+
+        const name = app.filter === "all"
+          ? "全部診所"
+          : CLINICS.find(clinic => clinic.id === app.filter).name;
+
+        text($("announcement"), `已顯示${name}，包括返工及放工路線。`);
+
+        // 新選診所即時載入，唔使等下一輪。
+        void refresh();
       }
     }
 
-    // =========================================================
-    // 10. 啟動及事件
-    // =========================================================
+    // ======================================================
+    // 啟動
+    // ======================================================
+
+    function validate() {
+      const clinicIds = new Set();
+
+      for (const clinic of CLINICS) {
+        if (clinicIds.has(clinic.id)) {
+          throw new Error("診所設定有重複");
+        }
+        clinicIds.add(clinic.id);
+
+        for (const direction of ["out", "back"]) {
+          for (const route of clinic[direction]) {
+            for (const stage of route.stages) {
+              for (const id of stage) {
+                if (!LEGS.has(id)) {
+                  throw new Error("路線設定不完整");
+                }
+              }
+            }
+          }
+        }
+      }
+
+      for (const config of LEGS.values()) {
+        if (!PROVIDERS[config.type]) {
+          throw new Error("交通工具設定無效");
+        }
+
+        if (config.type === "mtr" &&
+          (!LINES[config.line] || !STATIONS[config.station] ||
+           !DIRECTIONS[config.line]?.[config.direction])) {
+          throw new Error("港鐵設定無效");
+        }
+      }
+    }
 
     function initialize() {
-      // 設定錯誤提早發現，避免重複 id 靜靜地覆蓋資料。
-      const routeIds = ROUTES.map(config => config.id);
+      validate();
+      buildPage();
 
-      if (new Set(routeIds).size !== routeIds.length) {
-        throw new Error("ROUTES 設定有重複 id");
-      }
+      applyFilter(readStorage(SETTINGS.clinicStorage, "all"));
 
-      const fragment = document.createDocumentFragment();
-
-      for (const config of ROUTES) {
-        fragment.appendChild(createCard(config));
-      }
-
-      elements.grid.appendChild(fragment);
-
-      applyFilter(readSavedFilter());
-
-      elements.refreshButton.addEventListener("click", () => {
-        // 強制略過 ETA 快取；路線／站點快取仍然保留。
-        void refreshAll(true);
+      $("refreshButton").addEventListener("click", () => {
+        void refresh(true);
       });
 
-      for (const button of elements.filterButtons) {
+      for (const button of document.querySelectorAll("[data-clinic]")) {
         button.addEventListener("click", () => {
-          applyFilter(button.dataset.filter, true);
+          applyFilter(button.dataset.clinic, true);
         });
       }
 
+      window.addEventListener("online", updateNetwork);
+      window.addEventListener("offline", updateNetwork);
+
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
+          updateNetwork();
           tick();
         }
       });
 
-      window.addEventListener("online", () => {
-        if (!document.hidden) {
-          void refreshAll(true);
+      window.addEventListener("pageshow", event => {
+        if (event.persisted) {
+          updateNetwork();
+          tick();
         }
       });
 
-      renderAllCards();
-      void refreshAll();
+      $("networkNotice").hidden = !app.offline;
+      controls();
+      renderVisible();
+      refreshIndicator();
 
-      window.setInterval(tick, 1000);
+      void refresh();
+      setInterval(tick, 1000);
     }
 
-    initialize();
+    try {
+      initialize();
+    } catch (error) {
+      text($("fatalError"), `未能啟動：${errorText(error)}`);
+      $("fatalError").hidden = false;
+      $("refreshButton").disabled = true;
+      text($("nextRefresh"), "未能啟動");
+      console.error(error);
+    }
   </script>
 </body>
 </html>
