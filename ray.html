@@ -400,6 +400,346 @@
         transition: none !important;
       }
     }
+/* ======================================================
+   精簡列表 UI
+   ====================================================== */
+
+:root {
+  --width: 900px;
+}
+
+.topbar {
+  padding: 12px 12px 10px;
+}
+
+h1 {
+  margin-bottom: 6px;
+  font-size: 18px;
+}
+
+.refresh-info {
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+/* 保留倒數更新文字，移除進度條 */
+.refresh-track {
+  display: none;
+}
+
+#refreshButton {
+  width: 44px;
+  height: 44px;
+  border-color: transparent;
+  background: transparent;
+}
+
+#refreshButton span {
+  font-size: 22px;
+}
+
+.filters {
+  gap: 6px;
+}
+
+.filter {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+main {
+  padding-inline: 14px;
+}
+
+.clinic {
+  padding-top: 20px;
+}
+
+.clinic + .clinic {
+  margin-top: 24px;
+}
+
+.clinic-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.clinic-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.direction-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #191c22;
+}
+
+.direction-button {
+  min-height: 44px;
+  padding: 8px 17px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.direction-button[aria-pressed="true"] {
+  background: #005eb8;
+  color: #fff;
+}
+
+.commute {
+  margin-top: 0;
+}
+
+.commute-summary {
+  margin: 0 0 12px;
+  color: var(--subtle);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.route-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.route-button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid #30343d;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.route-button[aria-pressed="true"] {
+  border-color: #0a84ff;
+  background: #102943;
+  color: #fff;
+}
+
+/* 移除路線大外框 */
+.path {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.legs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stage-block {
+  overflow: hidden;
+  border: 1px solid #292d35;
+  border-radius: 14px;
+  background: #14171c;
+}
+
+.stage-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 13px 15px;
+  border-bottom: 1px solid #292d35;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.stage-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #282e38;
+  color: #d9dfe8;
+  font-size: 12px;
+}
+
+/* 卡片變成列表行 */
+.eta-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto auto auto auto;
+  align-items: start;
+  column-gap: 16px;
+  row-gap: 5px;
+
+  min-height: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.stage-block .eta-card + .eta-card {
+  border-top: 1px solid #292d35;
+}
+
+.step {
+  display: none;
+}
+
+.card-line {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.card-line::before {
+  width: 8px;
+  height: 8px;
+}
+
+.stop-name {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 18px;
+}
+
+.direction {
+  grid-column: 1;
+  grid-row: 3;
+  margin: 0;
+  font-size: 13px;
+}
+
+.platform {
+  grid-column: 1;
+  grid-row: 4;
+  margin: 0;
+  font-size: 12px;
+}
+
+.next {
+  grid-column: 1;
+  grid-row: 5;
+  margin: 0;
+  font-size: 12px;
+  color: var(--subtle);
+}
+
+.status {
+  grid-column: 1 / -1;
+  grid-row: 6;
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.picker {
+  grid-column: 1 / -1;
+  grid-row: 7;
+  margin-top: 5px;
+}
+
+.countdown {
+  grid-column: 2;
+  grid-row: 1 / 6;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  font-size: 32px;
+  white-space: nowrap;
+}
+
+.countdown.is-soon {
+  color: #fff;
+}
+
+.countdown.is-message {
+  max-width: 130px;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.eta-card.has-warning {
+  border-left: 0;
+}
+
+/* 二選一路線共用站名，唔再重複 */
+.stage-block.is-alternative .stop-name {
+  display: none;
+}
+
+.stage-block.is-alternative .card-line {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.eta-note {
+  margin: 14px 2px 0;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+@media (max-width: 540px) {
+  main {
+    padding-inline: 10px;
+  }
+
+  .clinic-title {
+    font-size: 20px;
+  }
+
+  .clinic-top {
+    align-items: flex-start;
+  }
+
+  .direction-button {
+    padding-inline: 13px;
+  }
+
+  .eta-card {
+    min-height: 0;
+    padding: 13px;
+    column-gap: 10px;
+  }
+
+  .countdown {
+    font-size: 29px;
+  }
+
+  .countdown.is-message {
+    max-width: 100px;
+    font-size: 13px;
+  }
+}
   </style>
 </head>
 
@@ -1653,7 +1993,158 @@ async function fetchCTB(config, force) {
       return card;
     }
 
-    function createCommute(clinic, direction) {
+function createCommute(clinic, direction) {
+      const out = direction === "out";
+      const section = makeElement("section", "commute");
+
+      section.dataset.direction = direction;
+
+      section.appendChild(
+        makeElement(
+          "p",
+          "commute-summary",
+          out
+            ? `鑽石山 → ${clinic.name}`
+            : `${clinic.name} → 鑽石山`
+        )
+      );
+
+      const routes = clinic[direction];
+      const switcher = makeElement("nav", "route-switch");
+      switcher.setAttribute("aria-label", "轉車方案");
+
+      const panels = [];
+      const buttons = [];
+
+      const storageKey =
+        `ray-eta-ui-route-${clinic.id}-${direction}`;
+
+      const savedIndex = Number(readStorage(storageKey, "0"));
+
+      const initialIndex =
+        Number.isInteger(savedIndex) &&
+        savedIndex >= 0 &&
+        savedIndex < routes.length
+          ? savedIndex
+          : 0;
+
+      function selectRoute(index, persist = false) {
+        panels.forEach((panel, i) => {
+          panel.hidden = i !== index;
+        });
+
+        buttons.forEach((button, i) => {
+          button.setAttribute(
+            "aria-pressed",
+            String(i === index)
+          );
+        });
+
+        if (persist) {
+          writeStorage(storageKey, String(index));
+        }
+      }
+
+      routes.forEach((route, routeIndex) => {
+        const block = makeElement("section", "path");
+
+        block.id =
+          `route-${clinic.id}-${direction}-${routeIndex}`;
+
+        block.setAttribute("aria-label", route.name);
+
+        const button = makeElement(
+          "button",
+          "route-button",
+          route.name
+        );
+
+        button.type = "button";
+        button.setAttribute("aria-pressed", "false");
+        button.setAttribute("aria-controls", block.id);
+
+        button.addEventListener("click", () => {
+          selectRoute(routeIndex, true);
+        });
+
+        buttons.push(button);
+        switcher.appendChild(button);
+
+        const list = makeElement("div", "legs");
+
+        route.stages.forEach((stage, stageIndex) => {
+          const alternative = stage.length > 1;
+
+          const group = makeElement(
+            "section",
+            alternative
+              ? "stage-block is-alternative"
+              : "stage-block"
+          );
+
+          const heading = makeElement("h4", "stage-heading");
+
+          heading.appendChild(
+            makeElement(
+              "span",
+              "stage-number",
+              String(stageIndex + 1)
+            )
+          );
+
+          const firstConfig = LEGS.get(stage[0]);
+
+          const headingText = alternative
+            ? `${firstConfig.title} · 二選一`
+            : stageIndex === 0
+              ? "上車"
+              : "轉車";
+
+          heading.appendChild(
+            makeElement("span", "", headingText)
+          );
+
+          group.appendChild(heading);
+
+          for (const legId of stage) {
+            group.appendChild(
+              createCard(
+                legId,
+                stageIndex + 1,
+                alternative
+              )
+            );
+          }
+
+          list.appendChild(group);
+        });
+
+        block.appendChild(list);
+        panels.push(block);
+      });
+
+      // 單一路線唔使顯示方案選擇掣。
+      if (routes.length > 1) {
+        section.appendChild(switcher);
+      }
+
+      for (const panel of panels) {
+        section.appendChild(panel);
+      }
+
+      section.appendChild(
+        makeElement(
+          "p",
+          "eta-note",
+          "倒數係各上車站目前嘅到站預報，唔包括步行時間；" +
+          "轉車站班次唔代表你抵達後嘅接駁時間。"
+        )
+      );
+
+      selectRoute(initialIndex);
+
+      return section;
+    }
       const out = direction === "out";
       const section = makeElement("section", "commute");
       const heading = makeElement("div", "commute-heading");
@@ -1701,7 +2192,148 @@ async function fetchCTB(config, force) {
       return section;
     }
 
-    function buildPage() {
+function buildPage() {
+      for (const [id] of LEGS) {
+        states.set(id, emptyState());
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      // 各診所共用同一個返工／放工選擇。
+      let selectedDirection =
+        readStorage("ray-eta-ui-direction", "out");
+
+      if (!["out", "back"].includes(selectedDirection)) {
+        selectedDirection = "out";
+      }
+
+      const directionViews = [];
+
+      function setDirection(direction, persist = false) {
+        selectedDirection = direction;
+
+        for (const item of directionViews) {
+          item.out.hidden = direction !== "out";
+          item.back.hidden = direction !== "back";
+
+          item.outButton.setAttribute(
+            "aria-pressed",
+            String(direction === "out")
+          );
+
+          item.backButton.setAttribute(
+            "aria-pressed",
+            String(direction === "back")
+          );
+        }
+
+        if (persist) {
+          writeStorage(
+            "ray-eta-ui-direction",
+            direction
+          );
+        }
+      }
+
+      for (const clinic of CLINICS) {
+        const section = makeElement("section", "clinic");
+
+        const heading = makeElement(
+          "h2",
+          "clinic-title",
+          clinic.name
+        );
+
+        heading.id = `clinic-title-${clinic.id}`;
+
+        section.setAttribute(
+          "aria-labelledby",
+          heading.id
+        );
+
+        const top = makeElement("div", "clinic-top");
+
+        const directionSwitcher = makeElement(
+          "div",
+          "direction-switch"
+        );
+
+        directionSwitcher.setAttribute("role", "group");
+        directionSwitcher.setAttribute(
+          "aria-label",
+          "返工或放工"
+        );
+
+        const outButton = makeElement(
+          "button",
+          "direction-button",
+          "返工"
+        );
+
+        const backButton = makeElement(
+          "button",
+          "direction-button",
+          "放工"
+        );
+
+        outButton.type = "button";
+        backButton.type = "button";
+
+        const outSection = createCommute(clinic, "out");
+        const backSection = createCommute(clinic, "back");
+
+        outSection.id = `commute-${clinic.id}-out`;
+        backSection.id = `commute-${clinic.id}-back`;
+
+        outButton.setAttribute(
+          "aria-controls",
+          outSection.id
+        );
+
+        backButton.setAttribute(
+          "aria-controls",
+          backSection.id
+        );
+
+        outButton.addEventListener("click", () => {
+          setDirection("out", true);
+        });
+
+        backButton.addEventListener("click", () => {
+          setDirection("back", true);
+        });
+
+        directionSwitcher.append(
+          outButton,
+          backButton
+        );
+
+        top.append(
+          heading,
+          directionSwitcher
+        );
+
+        section.append(
+          top,
+          outSection,
+          backSection
+        );
+
+        directionViews.push({
+          out: outSection,
+          back: backSection,
+          outButton,
+          backButton
+        });
+
+        clinicElements.set(clinic.id, section);
+        fragment.appendChild(section);
+      }
+
+      $("clinics").appendChild(fragment);
+
+      setDirection(selectedDirection);
+    }
       for (const [id] of LEGS) {
         states.set(id, emptyState());
       }
