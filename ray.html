@@ -1292,6 +1292,10 @@ const apiDirection =
       return details.filter(stop =>
         config.stopTerms.some(term => stop.name.includes(term))
       );
+    }
+
+
+
 async function fetchCTB(config, force) {
       const candidates = await findBusStops(config);
       const stop = chooseStop(config, candidates);
