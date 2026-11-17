@@ -1411,7 +1411,7 @@ if (error instanceof TypeError) {
             error
           });
 
-          throw new Error("未能連線（請檢查網絡或跨域限制）");
+	throw new Error("未能連線");
         }
         throw error;
       } finally {
@@ -1672,7 +1672,7 @@ async function fetchCTB(config, force) {
         if (sequences.size === 1) {
           rows = sameDirection;
           sequenceWarning =
-            "站序與路線資料不同，已按同站／同方向配對";
+            "站序不同，已按站點及方向配對";
         } else {
           console.warn("城巴站序配對不一致", {
             route: config.route,
@@ -1696,13 +1696,13 @@ async function fetchCTB(config, force) {
 
       if (!raw.length) {
         emptyMessage = "API 暫無資料";
-        diagnostic = "城巴回傳空陣列，未能判斷是否有車";
+        diagnostic = "城巴暫無資料";
       } else if (!sameDirection.length) {
         emptyMessage = "未配對到方向";
-        diagnostic = "API 有資料，但未配對到本站／本方向";
+        diagnostic = "站點／方向未配對";
       } else if (!result.arrivals.length) {
         emptyMessage = "未提供到站時間";
-        diagnostic = "收到本站班次紀錄，但 ETA 時間為空";
+        diagnostic = "城巴未提供到站時間";
       }
 
       if (!result.arrivals.length) {
@@ -2652,7 +2652,7 @@ function buildPage() {
           ? "全部診所"
           : CLINICS.find(clinic => clinic.id === app.filter).name;
 
-        text($("announcement"), `已顯示${name}，包括返工及放工路線。`);
+        text($("announcement"), `已選擇${name}`);
 
         // 新選診所即時載入，唔使等下一輪。
         void refresh();
