@@ -3033,5 +3033,402 @@ const journeyTime = makeElement(
       text($("nextRefresh"), "未能啟動");
     }
   </script>
+  <!-- ===== 香港現在時間及是日日出／日落 ===== -->
+<style>
+  .hk-day-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px 14px;
+    margin: 2px 0 7px;
+    padding: 8px 10px;
+    border: 1px solid var(--border, #29313d);
+    border-radius: 10px;
+    background: #10141a;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hk-clock-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+  }
+
+  .hk-current-date {
+    color: var(--muted, #c0c8d5);
+    font-size: 12px;
+  }
+
+  .hk-current-time {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.3;
+    letter-spacing: .3px;
+  }
+
+  .hk-sun-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    color: var(--muted, #c0c8d5);
+    font-size: 12px;
+  }
+
+  .hk-sun-item {
+    white-space: nowrap;
+  }
+
+  .hk-sun-value {
+    color: #ffe0a1;
+    font-weight: 700;
+  }
+
+  .hk-sun-source {
+    color: var(--subtle, #a0abbb);
+    font-size: 10px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .hk-sun-status {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--subtle, #a0abbb);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 540px) {
+    .hk-day-info {
+      gap: 5px;
+      padding: 7px 9px;
+    }
+
+    .hk-clock-group,
+    .hk-sun-group {
+      width: 100%;
+    }
+
+    .hk-current-time {
+      font-size: 17px;
+    }
+  }
+</style>
+
+<script>
+(() => {
+  "use strict";
+
+  // 獨立模組：不修改交通到站程式、選站資料或刷新設定。
+  const host = document.querySelector(".topbar-inner");
+  const brand = host?.querySelector(".brand-row");
+
+  if (!host || !brand || document.getElementById("hkDayInfo")) {
+    return;
+  }
+
+  const TIME_ZONE = "Asia/Hong_Kong";
+
+  // 香港參考位置；不要求使用者提供定位。
+  const LATITUDE = 22.302711;
+  const LONGITUDE = 114.177216;
+
+  const STORAGE_KEY = "ray-eta-hk-sun-v1";
+  const RETRY_MS = 5 * 60 * 1000;
+  const TIMEOUT_MS = 8000;
+
+  const panel = document.createElement("section");
+  panel.id = "hkDayInfo";
+  panel.className = "hk-day-info";
+  panel.setAttribute("aria-label", "香港時間及是日日出日落");
+
+  panel.innerHTML = `
+    <div class="hk-clock-group">
+      <span class="hk-current-date" data-hk="date"></span>
+      <time class="hk-current-time" data-hk="clock"
+        aria-label="香港現在時間"></time>
+    </div>
+
+    <div class="hk-sun-group">
+      <span class="hk-sun-item">
+        <span aria-hidden="true">☀️</span>
+        日出 <span class="hk-sun-value" data-hk="sunrise">—</span>
+      </span>
+
+      <span class="hk-sun-item">
+        <span aria-hidden="true">🌇</span>
+        日落 <span class="hk-sun-value" data-hk="sunset">—</span>
+      </span>
+
+      <a class="hk-sun-source"
+        href="https://sunrise-sunset.org/"
+        target="_blank" rel="noopener noreferrer"
+        aria-label="日出日落資料來源：Sunrise-Sunset">
+        資料來源
+      </a>
+    </div>
+
+    <p class="hk-sun-status" data-hk="status"
+      role="status" hidden></p>
+  `;
+
+  brand.insertAdjacentElement("afterend", panel);
+
+  const find = name => panel.querySelector(`[data-hk="${name}"]`);
+
+  const elements = {
+    date: find("date"),
+    clock: find("clock"),
+    sunrise: find("sunrise"),
+    sunset: find("sunset"),
+    status: find("status")
+  };
+
+  const dateFormatter = new Intl.DateTimeFormat("zh-HK", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short"
+  });
+
+  const clockFormatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  });
+
+  const sunFormatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  });
+
+  const keyFormatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  let activeDate = "";
+  let sunData = null;
+  let loading = false;
+  let retryAt = 0;
+
+  function setText(element, value) {
+    if (element.textContent !== value) {
+      element.textContent = value;
+    }
+  }
+
+  function setStatus(message = "") {
+    setText(elements.status, message);
+    elements.status.hidden = !message;
+  }
+
+  function dateKey(date) {
+    const parts = {};
+
+    for (const part of keyFormatter.formatToParts(date)) {
+      parts[part.type] = part.value;
+    }
+
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  }
+
+  function validData(value, expectedDate) {
+    if (!value || value.date !== expectedDate) return false;
+
+    for (const field of ["sunrise", "sunset"]) {
+      if (typeof value[field] !== "string") return false;
+
+      const time = Date.parse(value[field]);
+
+      if (!Number.isFinite(time)) return false;
+      if (dateKey(new Date(time)) !== expectedDate) return false;
+    }
+
+    return Date.parse(value.sunrise) < Date.parse(value.sunset);
+  }
+
+  function readCached(date) {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return validData(value, date) ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveCached(value) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    } catch {
+      // 私隱模式或儲存受限時，仍可正常顯示。
+    }
+  }
+
+  function renderSun() {
+    if (!sunData) {
+      setText(elements.sunrise, "—");
+      setText(elements.sunset, "—");
+      return;
+    }
+
+    setText(
+      elements.sunrise,
+      sunFormatter.format(new Date(sunData.sunrise))
+    );
+
+    setText(
+      elements.sunset,
+      sunFormatter.format(new Date(sunData.sunset))
+    );
+  }
+
+  async function loadSun(date) {
+    if (loading || sunData || Date.now() < retryAt) return;
+
+    if (navigator.onLine === false) {
+      setStatus("離線 · 暫未有今日的日出日落資料");
+      return;
+    }
+
+    loading = true;
+    setStatus("正在讀取日出日落時間…");
+
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      TIMEOUT_MS
+    );
+
+    try {
+      const url = new URL("https://api.sunrise-sunset.org/json");
+      url.searchParams.set("lat", String(LATITUDE));
+      url.searchParams.set("lng", String(LONGITUDE));
+      url.searchParams.set("date", date);
+      url.searchParams.set("formatted", "0");
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        credentials: "omit",
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const json = await response.json();
+
+      if (json.status !== "OK") {
+        throw new Error("日出日落服務暫不可用");
+      }
+
+      const result = {
+        date,
+        sunrise: json.results?.sunrise,
+        sunset: json.results?.sunset
+      };
+
+      if (!validData(result, date)) {
+        throw new Error("日出日落資料格式或日期不正確");
+      }
+
+      // 若請求期間已跨過香港午夜，唔顯示昨日資料。
+      if (
+        activeDate !== date ||
+        dateKey(new Date()) !== date
+      ) {
+        return;
+      }
+
+      sunData = result;
+      retryAt = 0;
+
+      saveCached(result);
+      renderSun();
+      setStatus();
+    } catch (error) {
+      if (
+        activeDate !== date ||
+        dateKey(new Date()) !== date
+      ) {
+        return;
+      }
+
+      console.warn("日出日落資料讀取失敗", error);
+
+      retryAt = Date.now() + RETRY_MS;
+
+      setStatus(
+        navigator.onLine === false
+          ? "離線 · 暫未有今日的日出日落資料"
+          : "暫未能取得日出日落時間 · 稍後自動再試"
+      );
+    } finally {
+      clearTimeout(timer);
+      loading = false;
+    }
+  }
+
+  function update() {
+    if (document.hidden) return;
+
+    const now = new Date();
+    const today = dateKey(now);
+
+    setText(elements.date, dateFormatter.format(now));
+    setText(elements.clock, clockFormatter.format(now));
+    elements.clock.dateTime = now.toISOString();
+
+    if (today !== activeDate) {
+      activeDate = today;
+      sunData = readCached(today);
+      retryAt = 0;
+
+      renderSun();
+      setStatus();
+    }
+
+    if (!sunData) {
+      void loadSun(today);
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) update();
+  });
+
+  window.addEventListener("pageshow", update);
+
+  window.addEventListener("online", () => {
+    retryAt = 0;
+    update();
+  });
+
+  // 撳原本更新掣，亦可重試未成功讀取的日出日落資料。
+  document.getElementById("refreshButton")
+    ?.addEventListener("click", () => {
+      if (!sunData) {
+        retryAt = 0;
+        update();
+      }
+    });
+
+  update();
+  setInterval(update, 1000);
+})();
+</script>
+<!-- ===== 香港時間模組結束 ===== -->
 </body>
 </html>
