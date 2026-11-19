@@ -1036,9 +1036,7 @@ function renderCard(id, now = Date.now()) {
     ? `往 ${state.direction}`
     : loaded ? "方向資料暫缺" : "載入中…";
 
-  view.updated.textContent = loaded
-    ? `接收於 ${formatTime(state.receivedAt)} HKT`
-    : "";
+
 
   view.following.textContent = "";
 
