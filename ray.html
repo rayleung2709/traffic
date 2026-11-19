@@ -3608,5 +3608,207 @@ const journeyTime = makeElement(
   setInterval(render, 1000);
 })();
 </script>
+<script>
+(() => {
+  "use strict";
+
+  document.getElementById("liveTraffic")?.remove();
+
+  const box = document.createElement("details");
+  box.id = "liveTraffic";
+  box.innerHTML = `
+    <summary>港鐵／交通：讀取中…</summary>
+    <div class="news-body"></div>
+  `;
+  document.getElementById("clinics").before(box);
+
+  const title = box.querySelector("summary");
+  const body = box.querySelector(".news-body");
+
+  let rail = ["港鐵：讀取中…"];
+  let roads = [];
+  let roadStatus = "交通消息：讀取中…";
+  let busy = false;
+  let lastRoadFetch = 0;
+  let signature = "";
+
+  function render() {
+    if (document.hidden) return;
+
+    const items = [...new Set([
+      ...rail,
+      ...(roadStatus ? [roadStatus] : []),
+      ...roads
+    ])];
+
+    title.textContent =
+      `📢 ${items[Math.floor(Date.now() / 8000) % items.length]}`;
+
+    const next = JSON.stringify(items);
+    if (next === signature) return;
+    signature = next;
+
+    body.replaceChildren(...items.map(message => {
+      const p = document.createElement("p");
+      p.textContent = message;
+      return p;
+    }));
+  }
+
+  async function loadRail() {
+    // 按目前方案取車站，同站不同方向只 fetch 一次。
+    const stations = new Map();
+
+    for (const id of visibleLegIds()) {
+      const config = LEGS.get(id);
+      if (config.type === "mtr") {
+        stations.set(`${config.line}-${config.station}`, config);
+      }
+    }
+
+    const results = await Promise.all(
+      [...stations.values()].map(async config => {
+        const name = LINES[config.line].name;
+        const url =
+          "https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php" +
+          `?line=${config.line}&sta=${config.station}&lang=TC`;
+
+        try {
+          // 共用原程式 fetch、快取及並行限制。
+          const { data: json } = await getJSON(url, 10000);
+          const delay = String(json?.isdelay).toUpperCase();
+
+          if (delay === "Y") {
+            return {
+              alert: `${name}：${clean(json.message) || "服務延誤"}`
+            };
+          }
+
+          if (Number(json?.status) !== 1 || delay !== "N") {
+            return {
+              unknown:
+                `${name} · ${config.title}：` +
+                (clean(json?.message) || "未能確認延誤狀態")
+            };
+          }
+
+          return { ok: true };
+        } catch {
+          return { unknown: `${name}：讀取失敗` };
+        }
+      })
+    );
+
+    const alerts = results.map(item => item.alert).filter(Boolean);
+    const unknown = results.map(item => item.unknown).filter(Boolean);
+
+    rail = [...new Set([...alerts, ...unknown])];
+
+    if (!rail.length) {
+      rail = [
+        results.length ? "港鐵：未有延誤提示" : "目前方案沒有港鐵"
+      ];
+    }
+  }
+
+  async function loadRoads() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch(
+        "https://resource.data.one.gov.hk/td/en/specialtrafficnews.xml",
+        {
+          cache: "no-store",
+          credentials: "omit",
+          signal: controller.signal
+        }
+      );
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const xml = new DOMParser().parseFromString(
+        await response.text(), "application/xml"
+      );
+
+      if (
+        xml.querySelector("parsererror") ||
+        xml.documentElement.localName !== "body"
+      ) {
+        throw new Error("交通消息格式錯誤");
+      }
+
+      const get = (node, tag) =>
+        node.getElementsByTagNameNS("*", tag)[0]
+          ?.textContent.trim() || "";
+
+      roads = [
+        ...xml.getElementsByTagNameNS("*", "message")
+      ].map(node =>
+        get(node, "ChinText") || get(node, "ChinShort")
+      ).filter(Boolean);
+
+      roadStatus = roads.length ? "" : "暫無交通消息";
+    } catch (error) {
+      roadStatus = roads.length
+        ? "交通消息更新失敗 · 以下為上次消息"
+        : "交通消息讀取失敗";
+
+      console.warn("交通消息", error);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function load(force = false) {
+    if (busy || document.hidden || navigator.onLine === false) {
+      return;
+    }
+
+    busy = true;
+
+    try {
+      const jobs = [loadRail()];
+
+      if (force || Date.now() - lastRoadFetch >= 60000) {
+        lastRoadFetch = Date.now();
+        jobs.push(loadRoads());
+      }
+
+      await Promise.all(jobs);
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+
+  document.getElementById("refreshButton")
+    ?.addEventListener("click", () => load(true));
+
+  document.addEventListener("click", event => {
+    if (event.target.closest(
+      ".filter, .direction-button, .route-button"
+    )) {
+      setTimeout(() => load(), 0);
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) load(true);
+  });
+
+  window.addEventListener("online", () => load(true));
+
+  window.addEventListener("offline", () => {
+    rail = ["離線 · 港鐵狀態未更新"];
+    roadStatus = "離線 · 交通消息未更新";
+    render();
+  });
+
+  load(true);
+  setInterval(() => load(), 15000);
+  setInterval(render, 1000);
+})();
+</script>
 </body>
 </html>
