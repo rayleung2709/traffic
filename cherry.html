@@ -349,6 +349,11 @@
 <main>
   <div class="grid" id="grid"></div>
 
+  <p class="page-note">
+    倒數按預計到站時間計算，並非車輛定位；
+    「暫無預報」不等於沒有服務。
+  </p>
+
   <noscript>
     <p class="page-note">請啟用 JavaScript 以查看到站資料。</p>
   </noscript>
@@ -365,7 +370,10 @@
     <p class="card-updated" data-role="updated"></p>
     <div class="big-countdown" data-role="countdown">--:--</div>
 
-
+    <details class="diagnostics">
+      <summary>站點資料</summary>
+      <p data-role="diagnostics">等候查詢…</p>
+    </details>
   </article>
 </template>
 
@@ -1036,7 +1044,9 @@ function renderCard(id, now = Date.now()) {
     ? `往 ${state.direction}`
     : loaded ? "方向資料暫缺" : "載入中…";
 
-
+  view.updated.textContent = loaded
+    ? `接收於 ${formatTime(state.receivedAt)} HKT`
+    : "";
 
   view.following.textContent = "";
 
