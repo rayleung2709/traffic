@@ -367,13 +367,9 @@
     <p class="direction" data-role="direction">載入中…</p>
     <p class="eta-minutes" data-role="following"></p>
     <p class="card-status" data-role="status"></p>
-    <p class="card-updated" data-role="updated"></p>
+  
     <div class="big-countdown" data-role="countdown">--:--</div>
 
-    <details class="diagnostics">
-      <summary>站點資料</summary>
-      <p data-role="diagnostics">等候查詢…</p>
-    </details>
   </article>
 </template>
 
@@ -778,8 +774,8 @@ async function findGmbStop(config, onDiagnostic) {
   if (matchingGroups.length === 0) {
     throw new Error(
       config.stopSeq != null
-        ? "搵唔到指定站序，請展開站點資料核對"
-        : `搵唔到「${config.stopMatch}」，請展開站點資料核對`
+? "搵唔到指定站序，請核對設定"
+: `搵唔到「${config.stopMatch}」，請核對設定`
     );
   }
 
@@ -1044,9 +1040,6 @@ function renderCard(id, now = Date.now()) {
     ? `往 ${state.direction}`
     : loaded ? "方向資料暫缺" : "載入中…";
 
-  view.updated.textContent = loaded
-    ? `接收於 ${formatTime(state.receivedAt)} HKT`
-    : "";
 
   view.following.textContent = "";
 
@@ -1164,9 +1157,7 @@ async function refreshCard(config) {
   try {
     const provider = PROVIDERS[config.type];
 
-    const result = await provider(config, text => {
-      view.diagnostics.textContent = text;
-    });
+const result = await provider(config, () => {});
 
     // 成功但冇班次：清除舊班次，唔視為連線失敗。
     state.direction = result.direction;
