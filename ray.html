@@ -3430,388 +3430,68 @@ const journeyTime = makeElement(
 })();
 </script>
 <!-- ===== 香港時間模組結束 ===== -->
-  <!-- ===== 港鐵服務提示及官方交通消息連結 ===== -->
 <style>
-  .service-news {
-    margin: 12px 0 0;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--panel);
+  #trafficMini {
+    margin: 8px 0 0;
+    font-size: 11px;
+    line-height: 1.5;
   }
-
-  .service-news summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    min-height: 44px;
-    padding: 10px 12px;
-    cursor: pointer;
-    list-style: none;
-  }
-
-  .service-news summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .service-news summary:focus-visible,
-  .service-news a:focus-visible {
-    outline: 3px solid var(--blue);
-    outline-offset: -3px;
-  }
-
-  .service-news-title {
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 800;
-  }
-
-  .service-news-title::before {
-    content: "▸";
+  #trafficMini a {
     display: inline-block;
-    margin-right: 6px;
-    color: var(--subtle);
-  }
-
-  .service-news[open] .service-news-title::before {
-    content: "▾";
-  }
-
-  .service-news-badge {
-    color: var(--muted);
-    font-size: 11px;
-    text-align: right;
-  }
-
-  .service-news.has-alert {
-    border-color: #725225;
-  }
-
-  .service-news.has-alert .service-news-badge {
-    color: var(--warning);
-  }
-
-  .service-news-body {
-    padding: 0 12px 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  .service-news-note {
-    margin: 9px 0;
-    color: var(--subtle);
-    font-size: 11px;
-    line-height: 1.6;
-  }
-
-  .service-news-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .service-news-row {
-    padding: 9px 0;
-  }
-
-  .service-news-row + .service-news-row {
-    border-top: 1px solid var(--border);
-  }
-
-  .service-news-line {
-    margin: 0;
-    color: var(--text);
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  .service-news-message {
-    margin: 4px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-  }
-
-  .service-news-row.is-warning .service-news-message {
-    color: var(--warning);
-  }
-
-  .service-news-time {
-    margin: 3px 0 0;
-    color: var(--subtle);
-    font-size: 10px;
-  }
-
-  .service-news-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .service-news-links a {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 8px 11px;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: var(--control);
-    color: #b9dbff;
-    font-size: 12px;
+    padding: 6px 0;
+    color: #a0abbb;
     text-decoration: none;
   }
-
-  .service-news-empty {
-    margin: 9px 0;
-    color: var(--subtle);
-    font-size: 12px;
+  #trafficMini p {
+    margin: 0 0 4px;
+    color: #ffbd59;
   }
 </style>
 
 <script>
 (() => {
-  "use strict";
+  const old = document.getElementById("rayServiceNews");
+  old?.remove();
 
-  // 本模組需要放在原本交通程式之後。
-  if (
-    typeof visibleLegIds !== "function" ||
-    typeof staleReasons !== "function" ||
-    typeof LEGS === "undefined" ||
-    typeof states === "undefined" ||
-    typeof LINES === "undefined" ||
-    typeof app === "undefined"
-  ) {
-    console.warn("服務提示模組：未找到原本交通程式");
-    return;
-  }
-
-  const clinics = document.getElementById("clinics");
-
-  if (
-    !clinics ||
-    document.getElementById("rayServiceNews")
-  ) {
-    return;
-  }
-
-  const panel = document.createElement("details");
-  panel.id = "rayServiceNews";
-  panel.className = "service-news";
-  panel.open = true;
-
-  // 固定介面；外來 API 訊息只用 textContent 顯示。
-  panel.innerHTML = `
-    <summary>
-      <span class="service-news-title">港鐵服務提示</span>
-      <span class="service-news-badge" data-news="badge">
-        等候資料
-      </span>
-    </summary>
-
-    <div class="service-news-body">
-      <p class="service-news-note">
-        只整理目前所選方案的到站 API 提示，
-        並非完整全綫服務公告；未有提示不代表服務正常。
-      </p>
-
-      <ul class="service-news-list" data-news="list"></ul>
-
-      <p class="service-news-empty" data-news="empty" hidden>
-        目前方案沒有港鐵路段。
-      </p>
-
-      <div class="service-news-links">
-        <a
-          href="https://www.mtr.com.hk/ch/customer/main/service_status.html"
-          target="_blank"
-          rel="noopener noreferrer">
-          港鐵官方服務情況 ↗
-        </a>
-
-        <a
-          href="https://www.td.gov.hk/tc/special_news/spnews.htm"
-          target="_blank"
-          rel="noopener noreferrer">
-          運輸署特別交通消息 ↗
-        </a>
-      </div>
-    </div>
+  const box = document.createElement("div");
+  box.id = "trafficMini";
+  box.innerHTML = `
+    <a href="https://www.mtr.com.hk/ch/customer/main/service_status.html"
+       target="_blank" rel="noopener noreferrer">港鐵情況 ↗</a>
+    <span style="color:#555;padding:0 8px">·</span>
+    <a href="https://www.td.gov.hk/tc/special_news/spnews.htm"
+       target="_blank" rel="noopener noreferrer">交通消息 ↗</a>
+    <p hidden></p>
   `;
+  document.getElementById("clinics").before(box);
 
-  clinics.before(panel);
+  const notice = box.querySelector("p");
 
-  const badge = panel.querySelector('[data-news="badge"]');
-  const list = panel.querySelector('[data-news="list"]');
-  const empty = panel.querySelector('[data-news="empty"]');
-
-  const timeFormatter = new Intl.DateTimeFormat("zh-HK", {
-    timeZone: "Asia/Hong_Kong",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23"
-  });
-
-  let previousSignature = "";
-  let previouslyHadAlert = false;
-
-  function element(tag, className, content) {
-    const node = document.createElement(tag);
-    node.className = className;
-    node.textContent = content;
-    return node;
-  }
-
-  function uniqueMessage(values) {
-    return [...new Set(values.filter(Boolean))].join(" · ");
-  }
-
-  function render() {
+  function update() {
     if (document.hidden) return;
 
-    const now = Date.now();
+    const hints = new Set();
 
-    const ids = visibleLegIds().filter(id =>
-      LEGS.get(id)?.type === "mtr"
-    );
-
-    const rows = ids.map(id => {
+    for (const id of visibleLegIds()) {
       const config = LEGS.get(id);
       const state = states.get(id);
 
-      // 沿用主程式的過期、來源時間異常及離線判斷。
-      const reasons = staleReasons(state, now);
-      const unavailable =
-        state.receivedAt === null || reasons.length > 0;
+      if (config.type !== "mtr" || !state.warning) continue;
+      if (staleReasons(state, Date.now()).length) continue;
 
-      const providerMessage = uniqueMessage([
-        state.warning,
-        state.notice
-      ]);
-
-      let message;
-
-      if (state.receivedAt === null) {
-        message = uniqueMessage([
-          app.offline
-            ? "離線，未能取得提示"
-            : state.error || (
-                app.refreshing ? "正在讀取資料…" : "等候資料"
-              ),
-          "服務情況未確認"
-        ]);
-      } else if (reasons.length) {
-        message = uniqueMessage([
-          ...reasons,
-          providerMessage
-            ? `上次提示：${providerMessage}`
-            : "",
-          "目前服務情況未確認"
-        ]);
-      } else {
-        message =
-          providerMessage ||
-          "未收到延誤／特別服務提示";
-      }
-
-      return {
-        id,
-        title:
-          `${LINES[config.line].name} · ` +
-          `${config.title} · ${config.directionLabel}`,
-        message,
-        unavailable,
-        // warning 亦可能包含預報格式問題，
-        // 所以統一稱為「提示」，不當作已確認的事故。
-        hasAlert: Boolean(providerMessage) && !unavailable,
-        time: state.receivedAt === null
-          ? ""
-          : `到站資料讀取：${
-              timeFormatter.format(new Date(state.receivedAt))
-            }`
-      };
-    });
-
-    const alerts = rows.filter(row => row.hasAlert).length;
-    const unknown = rows.filter(row => row.unavailable).length;
-
-    let badgeText;
-
-    if (!rows.length) {
-      badgeText = "沒有港鐵路段";
-    } else if (alerts) {
-      badgeText =
-        `${alerts} 個路段有提示` +
-        (unknown ? ` · ${unknown} 個未確認` : "");
-    } else if (unknown) {
-      badgeText = `${unknown} 個路段未確認`;
-    } else {
-      badgeText = "未收到延誤提示";
+      hints.add(`${LINES[config.line].name}：${state.warning}`);
     }
 
-    const hasAlert = alerts > 0;
-
-    // 新出現提示時自動展開；其餘時間保留使用者的收合選擇。
-    if (hasAlert && !previouslyHadAlert) {
-      panel.open = true;
+    const message = [...hints].join(" ／ ");
+    if (notice.textContent !== message) {
+      notice.textContent = message;
     }
-
-    previouslyHadAlert = hasAlert;
-
-    const signature = JSON.stringify({
-      rows,
-      badgeText,
-      hasAlert
-    });
-
-    if (signature === previousSignature) return;
-    previousSignature = signature;
-
-    badge.textContent = badgeText;
-    panel.classList.toggle("has-alert", hasAlert);
-    empty.hidden = rows.length !== 0;
-
-    const fragment = document.createDocumentFragment();
-
-    for (const row of rows) {
-      const item = element(
-        "li",
-        "service-news-row" +
-          (row.hasAlert || row.unavailable ? " is-warning" : ""),
-        ""
-      );
-
-      item.append(
-        element("p", "service-news-line", row.title),
-        element("p", "service-news-message", row.message)
-      );
-
-      if (row.time) {
-        item.append(
-          element("p", "service-news-time", row.time)
-        );
-      }
-
-      fragment.append(item);
-    }
-
-    list.replaceChildren(fragment);
+    notice.hidden = !message;
   }
 
-  // 只檢查本機現有資料，唔會額外打 API。
-  render();
-  setInterval(render, 1000);
-
-  document.addEventListener("visibilitychange", render);
-  window.addEventListener("online", render);
-  window.addEventListener("offline", render);
-  window.addEventListener("pageshow", render);
+  update();
+  setInterval(update, 1000);
 })();
 </script>
-<!-- ===== 港鐵服務提示模組結束 ===== -->
 </body>
 </html>
