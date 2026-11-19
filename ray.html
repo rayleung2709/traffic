@@ -1852,7 +1852,15 @@ function journeyLabel(clinicId, direction, routeIndex, stageCount) {
       const station = json.data?.[`${config.line}-${config.station}`];
 
       if (!station || typeof station !== "object") {
-        throw new Error(delayed ? "港鐵延誤，暫無班次" : "未收到車站資料");
+if (delayed) {
+  return {
+    arrivals: [],
+    receivedAt: packet.receivedAt,
+    sourceAt: firstTime(json.curr_time, json.sys_time),
+    warning: clean(json.message) || "服務延誤，暫無班次"
+  };
+}
+throw new Error("未收到車站資料");
       }
 
       const trains = station[config.direction] ?? [];
@@ -1871,10 +1879,12 @@ function journeyLabel(clinicId, direction, routeIndex, stageCount) {
           station.sys_time, station.curr_time,
           json.sys_time, json.curr_time
         ),
-        warning: messages([
-          delayed ? "港鐵服務延誤" : "",
-          result.warning
-        ])
+       warning: messages([
+  delayed
+    ? clean(json.message) || "服務延誤"
+    : "",
+  result.warning
+])
       };
     }
 
@@ -3447,50 +3457,155 @@ const journeyTime = makeElement(
     color: #ffbd59;
   }
 </style>
+<style>
+  #liveTraffic {
+    margin-top: 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  #liveTraffic summary {
+    padding: 7px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    list-style: none;
+    cursor: pointer;
+    color: var(--warning);
+  }
+  #liveTraffic summary::-webkit-details-marker { display: none; }
+  #liveTraffic .news-body {
+    max-height: 180px;
+    overflow-y: auto;
+    padding-bottom: 6px;
+  }
+  #liveTraffic p {
+    margin: 0;
+    padding: 7px 0;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  #liveTraffic p + p { border-top: 1px solid var(--border); }
+</style>
 
 <script>
 (() => {
-  const old = document.getElementById("rayServiceNews");
-  old?.remove();
-
-  const box = document.createElement("div");
-  box.id = "trafficMini";
+  const box = document.createElement("details");
+  box.id = "liveTraffic";
   box.innerHTML = `
-    <a href="https://www.mtr.com.hk/ch/customer/main/service_status.html"
-       target="_blank" rel="noopener noreferrer">港鐵情況 ↗</a>
-    <span style="color:#555;padding:0 8px">·</span>
-    <a href="https://www.td.gov.hk/tc/special_news/spnews.htm"
-       target="_blank" rel="noopener noreferrer">交通消息 ↗</a>
-    <p hidden></p>
+    <summary>交通消息：讀取中…</summary>
+    <div class="news-body"></div>
   `;
   document.getElementById("clinics").before(box);
 
-  const notice = box.querySelector("p");
+  const title = box.querySelector("summary");
+  const body = box.querySelector(".news-body");
+  const URL =
+    "https://resource.data.one.gov.hk/td/en/specialtrafficnews.xml";
 
-  function update() {
+  let roads = [];
+  let loaded = false;
+  let failed = false;
+  let busy = false;
+  let signature = "";
+
+  function render() {
     if (document.hidden) return;
 
-    const hints = new Set();
+    const mtr = [];
 
     for (const id of visibleLegIds()) {
       const config = LEGS.get(id);
       const state = states.get(id);
 
-      if (config.type !== "mtr" || !state.warning) continue;
-      if (staleReasons(state, Date.now()).length) continue;
-
-      hints.add(`${LINES[config.line].name}：${state.warning}`);
+      if (
+        config.type === "mtr" &&
+        state.warning &&
+        !staleReasons(state, Date.now()).length
+      ) {
+        mtr.push(`${LINES[config.line].name}：${state.warning}`);
+      }
     }
 
-    const message = [...hints].join(" ／ ");
-    if (notice.textContent !== message) {
-      notice.textContent = message;
-    }
-    notice.hidden = !message;
+    const items = [...new Set([...mtr, ...roads])];
+    const status = failed
+      ? (loaded ? "交通消息更新失敗 · 保留上次消息" : "交通消息讀取失敗")
+      : loaded ? "暫無交通消息" : "交通消息：讀取中…";
+
+    const display = failed ? [status, ...items] : items;
+    const index = Math.floor(Date.now() / 8000);
+
+    title.textContent = display.length
+      ? `📢 ${display[index % display.length]}`
+      : status;
+
+    const next = JSON.stringify(display);
+    if (next === signature) return;
+    signature = next;
+
+    body.replaceChildren(...display.map(message => {
+      const p = document.createElement("p");
+      p.textContent = message;
+      return p;
+    }));
   }
 
-  update();
-  setInterval(update, 1000);
+  async function load() {
+    if (busy || document.hidden) return;
+    busy = true;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch(URL, {
+        cache: "no-store",
+        credentials: "omit",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const xml = new DOMParser().parseFromString(
+        await response.text(), "application/xml"
+      );
+      if (xml.querySelector("parsererror")) {
+        throw new Error("XML 格式錯誤");
+      }
+
+      const get = (node, tag) =>
+        node.getElementsByTagName(tag)[0]?.textContent.trim() || "";
+
+      roads = [...xml.getElementsByTagName("message")]
+        .filter(node => get(node, "CurrentStatus") !== "1")
+        .map(node =>
+          get(node, "CONTENT_CN") ||
+          get(node, "ChinText") ||
+          get(node, "ChinShort")
+        )
+        .filter(Boolean);
+
+      loaded = true;
+      failed = false;
+    } catch (error) {
+      failed = true;
+      console.warn("交通消息", error);
+    } finally {
+      clearTimeout(timer);
+      busy = false;
+      render();
+    }
+  }
+
+  document.getElementById("refreshButton")
+    ?.addEventListener("click", load);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) load();
+  });
+  window.addEventListener("online", load);
+
+  load();
+  setInterval(load, 60000);
+  setInterval(render, 1000);
 })();
 </script>
 </body>
